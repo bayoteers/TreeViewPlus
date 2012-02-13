@@ -10,6 +10,7 @@ use Bugzilla::Error;
 use Bugzilla::Util qw(detaint_natural);
 use Bugzilla::Constants;
 use Bugzilla::WebService::Util qw(validate);
+use Bugzilla::WebService::Bug;
 
 use Bugzilla::Extension::TreeViewPlus::Util qw(generate_tree);
 
@@ -18,11 +19,13 @@ sub get_tree {
     defined $params->{ids}
         || ThrowCodeError('param_required', { param => 'ids' });
     my @ids;
+    my $bugs = {};
     foreach my $id (@{$params->{ids}}) {
         detaint_natural($id)
             || ThrowCodeError('param_must_be_numeric', { param => 'ids' });
+        my $bug = Bugzilla::Bug->check($id);
+        $bugs->{$id} = $self->_bug_to_hash($bug);
         push(@ids, $id);
-        # TODO Check that the bugs exist
     }
     my $maxdepth = $params->{depth};
     my ($direction) = ($params->{dir} =~ /(blocked|dependson)/);
@@ -32,8 +35,13 @@ sub get_tree {
     foreach my $id (@ids) {
         $tree->{$id} = generate_tree($id, $maxdepth, $direction, $seen);
     }
+    foreach my $id (keys %{$seen}) {
+        next if defined $bugs->{$id};
+        my $bug = Bugzilla::Bug->check($id);
+        $bugs->{$id} = $self->_bug_to_hash($bug);
+    }
 
-    return { tree => $tree, seen => $seen };
+    return { tree => $tree, seen => $seen, bugs => $bugs };
 }
 
 sub set_dependencies {
@@ -62,4 +70,13 @@ sub set_dependencies {
     return $changes;
 }
 
+
+sub _bug_to_hash {
+    my ($self, $bug) = @_;
+    my $bug_hash = Bugzilla::WebService::Bug::_bug_to_hash($self, $bug);
+    # Include dependson and blocked info
+    $bug_hash->{dependson} = $bug->dependson;
+    $bug_hash->{blocked} = $bug->blocked;
+    return $bug_hash;
+}
 1;
