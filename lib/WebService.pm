@@ -11,7 +11,7 @@ use Bugzilla::Util qw(detaint_natural);
 use Bugzilla::Constants;
 use Bugzilla::WebService::Util qw(validate);
 
-use Bugzilla::Extension::TreeViewPlus::Util;
+use Bugzilla::Extension::TreeViewPlus::Util qw(generate_tree);
 
 sub get_tree {
     my ($self, $params) = validate(@_, 'ids');
@@ -36,7 +36,7 @@ sub get_tree {
     return { tree => $tree, seen => $seen };
 }
 
-sub set_depends {
+sub set_dependencies {
     my ($self, $params) = @_;
     Bugzilla->login(LOGIN_REQUIRED);
 
@@ -47,7 +47,19 @@ sub set_depends {
 
     Bugzilla->user->can_edit_product($bug->product_id)
         || ThrowUserError("product_edit_denied", {product => $bug->product});
-    #TBD
+
+    if (defined $params->{dependson} || defined $params->{blocked}) {
+        $bug->set_dependencies(scalar $params->{dependson},
+                                scalar $params->{blocked});
+    }
+    my $dbh = Bugzilla->dbh;
+    $dbh->bz_start_transaction();
+    my $timestamp = $dbh->selectrow_array(q{SELECT LOCALTIMESTAMP(0)});
+    my $changes = $bug->update($timestamp);
+
+    $dbh->bz_commit_transaction();
+
+    return $changes;
 }
 
 1;
