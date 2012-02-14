@@ -37,7 +37,6 @@ sub generate_tree {
     } else {
         $direction = "dependson";
     }
-    $depth = 1 unless defined $depth;
     $seen = {} unless defined $seen;
     
     $seen->{$id} = 1;
@@ -51,8 +50,9 @@ sub generate_tree {
     my $child;
     $sth->bind_columns(\$child);
     while ( $sth->fetch ) {
-        if ($depth <= 0 or $seen->{$child}) {
-            $tree{$child} = undef;
+        next if ($depth == 0);
+        if ($seen->{$child}) {
+            $tree{$child} = {};
         } else {
             $tree{$child} = generate_tree(
                 $child, $depth - 1, $direction, $seen);
@@ -73,7 +73,9 @@ bug dependency trees.
 =head1 SYNOPSIS
 
   # get direct dependencies of bug 1
-  my $tree = generate_tree(1);
+  my $tree = generate_tree(1, 1);
+  # get the complete dependency tree of bug 1
+  my $tree = generate_tree(1, -1);
   # get two levels of bugs that bug 1 blocks
   my $tree = generate_tree(1, 2, 'blocked')
 
@@ -101,26 +103,26 @@ Recursively generates the bug dependency tree
 
 =item C<id> - Bug id
 
-=item C<depth> - Maximum depth to go to, defaults to 1
+=item C<depth> - Maximum depth to go to
 
 =item C<direction> - Direction of the tree travelsal
 
-  Either 'blocked', to get the tree of bugs this one blocks, or 'dependson', to
-  get the tree of bugs this one depends on. Defaults to 'dependson'
+Either 'blocked', to get the tree of bugs this one blocks, or 'dependson', to
+get the tree of bugs this one depends on. Defaults to 'dependson'
 
 =item C<seen> - Hashref where keys present the already seen bug IDs
 
-  To prevent following some bug set the value with bugs id key to 1. Usually
-  this is only used internally in the recursive calls to skip already processed
-  bugs if they appear more than once in the tree.
+To prevent following some bug set the value with bugs id key to 1. Usually
+this is only used internally in the recursive calls to skip already processed
+bugs if they appear more than once in the tree.
 
-=back Params
+=back
 
 =item B<Returns>
 
-List of hashref and arrayref. Hash contains the tree stucture and array the seen bug IDs.
+Hashref containing the tree stucture.
 
-=back generate_tree
+=back
 
-=back Tree handling
+=back
 
