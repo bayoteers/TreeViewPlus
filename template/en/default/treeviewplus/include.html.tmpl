@@ -1,0 +1,42 @@
+<script src="extensions/TreeViewPlus/web/js/jquery-ui-1.8.16.custom.min.js" type="text/javascript"></script>
+<script src="extensions/TreeViewPlus/web/js/jquery.dynatree-1.2.1_rc3.js" type="text/javascript"></script>
+<script src="extensions/TreeViewPlus/web/js/treeviewplus.js" type="text/javascript"></script>
+<script src="js/field.js" type="text/javascript"></script>
+<script src="js/util.js" type="text/javascript"></script>
+
+<!-- TreeViewPlus templates -->
+<div style="display:none;">
+
+<form id="enter_bug" method="post" action="post_bug.cgi" enctype="multipart/form-data">
+    <input type="hidden" name="product"/>
+    <input type="hidden" name="component"/>
+    <input type="hidden" name="dependson"/>
+    <input type="hidden" name="blocked"/>
+    <input type="hidden" name="form_name" value="enter_bug">
+
+    <table cellspacing="4" cellpadding="2" border="0">
+    <tbody>
+        <tr>
+            [% INCLUDE bug/field.html.tmpl
+                field = bug_fields.bug_severity, editable = 1, 
+                value = Param('defaultseverity') %]
+        </tr>
+        <tr>
+            <th class="required">Summary:</th>
+            <td colspan="3">
+                <input name="short_desc" size="70" value="" maxlength="255"
+                    spellcheck="true" aria-required="true" class="required"/>
+            </td>
+        </tr>
+        <tr>
+            <th>Description:</th>
+            <td colspan="3">
+                <textarea name="comment" id="comment" rows="25" cols="80"
+                    onfocus="this.rows=25"></textarea>
+            </td>
+        </tr>
+    </tbody>
+    </table>
+</form>
+
+</div>

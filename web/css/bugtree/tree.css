@@ -1,3 +1,22 @@
+ul#tree-messages li {
+    cursor: pointer;
+}
+
+ul#tree-messages li.error {
+    background: red;
+}
+
+ul.dynatree-container a.hl-duple {
+    background: lightblue;
+}
+
+
+
+
+/*******************************************************************************
+ * DYNATREE STUFF BELOW
+ */
+
 /*******************************************************************************
  * Tree container
  */

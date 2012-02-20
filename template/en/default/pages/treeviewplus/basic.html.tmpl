@@ -23,6 +23,16 @@
     title = "TreeViewPlus"
 %]
 
+[% INCLUDE treeviewplus/include.html.tmpl %]
+
 <div id="tree"></div>
+<ul id="tree-messages"/>
+<script type="text/javascript">
+$(function()
+{
+   var ui = new TVP.TreeUI($("#tree"));
+   ui.controller.init([[% last_bug_list.join(',') %]]);
+});
+</script>
 
 [% PROCESS global/footer.html.tmpl %]
