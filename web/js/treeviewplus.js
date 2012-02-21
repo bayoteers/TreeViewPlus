@@ -7,23 +7,38 @@ var TVP = {};
 /**
  * Default BugTree options values
  *
+ * @param {boolean} autoSave Should the changes be saved automatically.
+ * @param {string} messageList jQuery selector for message list element.
+ * @param {Array.<string>} titleFields Fields shown in tree node title.
  * @param {string} type Type of the tree.
  *      "blocked" or "dependson"
- * @param {Array.<string>} titleFields Fields shown in tree node title.
- * @param {boolean} autoSave Should the changes be saved automatically.
  */
 TVP.treeOptions = {
-    type: "dependson",
-    titleFields: ["id", "summary"],
     autoSave: true,
+    messageList: null,
+    titleFields: ["id", "summary"],
+    type: "dependson",
 };
 
+/**
+ * Validates and normalizes options.
+ */
 TVP.validateOptions = function(options)
 {
     if (["dependson", "blocked"].indexOf(options.type) == -1) {
         throw("Unknow tree type '" + options.type + "'");
     }
     options.autoSave = Boolean(options.autoSave);
+};
+
+// Non visible fields required when creating new bugs
+TVP._requiredFields = {
+    product: "product",
+    component: "component",
+    version: "version",
+    op_sys: "op_sys",
+    platform: "rep_platform",
+    priority: "priority",
 };
 
 /**
@@ -55,7 +70,7 @@ TVP.TreeUI = Base.extend({
             onCreate: this._onCreate.bind(this),
             onActivate: this._onActivate.bind(this),
             onDeactivate: this._onDeactivate.bind(this),
-            onKeypress: this._onKeyPress.bind(this),
+            onKeypress: this._onKeypress.bind(this),
             onClick: this._onClick.bind(this),
             onDblClick: this._onDblClick.bind(this),
             dnd: {
@@ -74,7 +89,21 @@ TVP.TreeUI = Base.extend({
         this._dtree = this.elements.tree.dynatree("getTree");
 
         // Add other elements
-        this.elements.messageList = $("ul#tvp-messages");
+        this._addUiElements();
+
+        // Load the tree
+        this.controller.load();
+    },
+
+    _addUiElements: function()
+    {
+        if (this.options.messageList) {
+            this.elements.messageList = $(this.options.messageList).first();
+            this.elements.addClass("tvp-messages");
+        } else {
+            this.elements.messageList = $("<ul class='tvp-messages'");
+            this.elements.tree.append(this.elements.messageList);
+        }
         var controls = $("<span class='tvp-controls'/>");
         // Direction toggle button
         this.elements.toggleType = $("<input type='button'/>");
@@ -96,9 +125,6 @@ TVP.TreeUI = Base.extend({
         }
 
         this.elements.tree.prepend(controls);
-
-        // Load the tree
-        this.controller.load();
     },
 
     /**
@@ -113,8 +139,11 @@ TVP.TreeUI = Base.extend({
      */
     _onActivate: function(node)
     {
-        $("span.buttons", node.li).first().show();
+        console.log("_onActivate", node);
+        $(".tvp-buttons", node.li).first().show();
         this.highlight(node.data.bugID, true);
+        // this is here because closing the enterBug breaks deactivate
+        this.closeEnterBug();
     },
 
     /**
@@ -122,7 +151,8 @@ TVP.TreeUI = Base.extend({
      */
     _onDeactivate: function(node)
     {
-        $("span.buttons", node.li).first().hide();
+        console.log("_onDeactivate", node);
+        $(".tvp-buttons", node.li).first().hide();
         this.highlight(node.data.bugID, false);
     },
 
@@ -145,7 +175,7 @@ TVP.TreeUI = Base.extend({
     /**
      * Handles key commands on dynatree
      */
-    _onKeyPress: function(node, event)
+    _onKeypress: function(node, event)
     {
         console.log("_onKeyPress", node, event);
         switch (event.keyCode)
@@ -156,7 +186,7 @@ TVP.TreeUI = Base.extend({
                 break;
             case 99: // c
                 node.activate();
-                this.openNewChildBug();
+                this.openEnterBug();
                 break;
         }
     },
@@ -323,14 +353,14 @@ TVP.TreeUI = Base.extend({
     _addNodeButtons: function(node, nodeSpan)
     {
         var bug = this.controller.bugs[node.data.bugID];
-        var span = $("<span class='buttons'/>");
+        var span = $("<span class='tvp-buttons'/>");
         span.hide();
         $(nodeSpan).after(span);
         var link = $("<a href='#' title='Open in new window'>[O]</a>");
         link.click(this.openBugInNewWindow.bind(this));
         span.append(link);
         link = $("<a href='#' title='Create child'>[C]</a>");
-        link.click(this.openNewChildBug.bind(this));
+        link.click(this.openEnterBug.bind(this));
         span.append(link);
     },
 
@@ -340,11 +370,34 @@ TVP.TreeUI = Base.extend({
         window.open("show_bug.cgi?id=" + node.data.bugID, "_blank");
     },
 
-    openNewChildBug: function()
+    openEnterBug: function()
     {
+        if (this.elements.enterBug) return;
         var node = this._dtree.getActiveNode();
-        var bug = this.controller.bugs[node.data.bugID];
+        // Clone the form
+        var form = $("#tvp-templates .tvp-enter-bug").clone();
+        this.elements.enterBug = form;
+        form.attr("id", "enterbug_" + node.data.bugID);
+        form.find("[name='save']").click(this._createBug.bind(this));
+        form.find("[name='cancel']").click(this.closeEnterBug.bind(this));
+        // Display
+        $(".tvp-buttons", node.li).first().after(form);
+        form.find("[name='severity']").focus();
+    },
+
+    closeEnterBug: function()
+    {
+        if (!this.elements.enterBug) return;
+        this.elements.enterBug.remove();
+        this.elements.enterBug = null;
+        this._dtree.getActiveNode().focus();
+    },
+
+    _createBug: function()
+    {
         // TODO
+        alert("Not implemented");
+        this.closeEnterBug();
     },
 
     /**
