@@ -20,13 +20,13 @@
   #%]
 
 [% PROCESS global/header.html.tmpl
-    title = "TreeViewPlus"
+    title = "TreeViewPlus - "_ last_bug_list.join(', ')
 %]
 
 [% INCLUDE treeviewplus/include.html.tmpl %]
 
 <div id="tree"></div>
-<ul id="tree-messages"/>
+<ul id="tvp-messages"/>
 <script type="text/javascript">
 $(function()
 {

@@ -74,8 +74,8 @@ TVP.TreeUI = Base.extend({
         this._dtree = this.elements.tree.dynatree("getTree");
 
         // Add other elements
-        this.elements.messageList = $("ul#tree-messages");
-        var controls = $("<span class='tree-controls'/>");
+        this.elements.messageList = $("ul#tvp-messages");
+        var controls = $("<span class='tvp-controls'/>");
         // Direction toggle button
         this.elements.toggleType = $("<input type='button'/>");
         this.elements.toggleType.attr("value", this.options.type);
@@ -357,9 +357,9 @@ TVP.TreeUI = Base.extend({
                     if (node.data.bugID == bugID) {
                         var title = $("a.dynatree-title", node.li).first();
                         if (on) {
-                            title.addClass("hl-duple");
+                            title.addClass("tvp-hl-node");
                         } else {
-                            title.removeClass("hl-duple");
+                            title.removeClass("tvp-hl-node");
                         }
                     }
                 }, false);

@@ -1,16 +1,19 @@
-ul#tree-messages li {
+ul#tvp-messages li {
     cursor: pointer;
 }
 
-ul#tree-messages li.error {
+ul#tvp-messages li.error {
     background: red;
 }
 
-ul.dynatree-container a.hl-duple {
+ul.dynatree-container .tvp-hl-node {
     background: lightblue;
 }
 
-
+div.tvp-enter-bug {
+    border: 1px dotted gray;
+    background-color: white;
+}
 
 
 /*******************************************************************************
