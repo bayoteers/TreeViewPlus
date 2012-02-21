@@ -71,19 +71,7 @@ TVP.TreeUI = Base.extend({
         this._dtree = this.elements.tree.dynatree("getTree");
 
         // Add other elements
-        this.elements.heading = $("<h1/>");
-        this.elements.tree.prepend(this.elements.heading);
         this.elements.messageList = $("ul#tree-messages");
-
-        // TODO Use template for this
-        this.elements.childForm = $("<form/>");
-        this.elements.childForm.attr("action", "enter_bug.cgi");
-        this.elements.childForm.attr("target", "_blank");
-        this.elements.childForm.attr("method", "POST");
-        this.elements.childForm.append("<input name='product'/>");
-        this.elements.childForm.append("<input name='component'/>");
-        this.elements.childForm.append("<input name='blocked'/>");
-        this.elements.childForm.append("<input name='dependson'/>");
 
         this.controller = new TVP.TreeController(this);
     },
@@ -199,7 +187,6 @@ TVP.TreeUI = Base.extend({
         // Clear tree
         var root = this._dtree.getRoot();
         root.removeChildren();
-        this.setHeading("");
     },
 
     /**
@@ -274,6 +261,26 @@ TVP.TreeUI = Base.extend({
     },
 
     /**
+     * Removes bug from the tree.
+     */
+    removeBug: function(bugID, parentID)
+    {
+        var bugID = Number(bugID);
+        var parentID = Number(parentID);
+        var root = this._dtree.getRoot();
+
+        this._dtree.visit(function(node) {
+            if(node.data.bugID == bugID) {
+                var parentNode = node.getParent();
+                if (!parentID && parentNode == root
+                        || parentNode.data.bugID == parentID) {
+                    node.remove();
+                }
+            }
+        });
+    },
+
+    /**
      * Constructs node title.
      */
     _getTitle: function(bug)
@@ -290,15 +297,16 @@ TVP.TreeUI = Base.extend({
      */
     _addNodeButtons: function(node, nodeSpan)
     {
+        var bug = this.controller.bugs[node.data.bugID];
         var span = $("<span class='buttons'/>");
         span.hide();
+        $(nodeSpan).after(span);
         var link = $("<a href='#' title='Open in new window'>[O]</a>");
         link.click(this.openBugInNewWindow.bind(this));
         span.append(link);
         link = $("<a href='#' title='Create child'>[C]</a>");
         link.click(this.openNewChildBug.bind(this));
         span.append(link);
-        $(nodeSpan).after(span);
     },
 
     openBugInNewWindow: function()
@@ -311,20 +319,7 @@ TVP.TreeUI = Base.extend({
     {
         var node = this._dtree.getActiveNode();
         var bug = this.controller.bugs[node.data.bugID];
-        this.elements.childForm.find("[name='product']").val(
-                bug.product);
-        this.elements.childForm.find("[name='component'").val(
-                bug.component);
-        if (this.options.type == "dependson") {
-            this.elements.childForm.find("[name='dependson']").val("");
-            this.elements.childForm.find("[name='blocked']").val(
-                    bug.id);
-        } else {
-            this.elements.childForm.find("[name='blocked']").val("");
-            this.elements.childForm.find("[name='dependson']").val(
-                    bug.id);
-        }
-        this.elements.childForm.submit();
+        // TODO
     },
 
     /**
@@ -343,14 +338,6 @@ TVP.TreeUI = Base.extend({
                         }
                     }
                 }, false);
-    },
-
-    /**
-     * Set the tree heading
-     */
-    setHeading: function(text)
-    {
-        this.elements.heading.html(text);
     },
 
     /**
@@ -391,8 +378,8 @@ TVP.TreeController = Base.extend({
     {
         this.ui = ui;
         this.bugs = {};
-        this._roots = [];
-        this._actions = [];
+        this.roots = [];
+        this._actions = new TVP.Action();
     },
     /**
      * Populates the tree with Tree.get_tree() RPC method.
@@ -401,8 +388,7 @@ TVP.TreeController = Base.extend({
      */
     init: function(bugIDs)
     {
-        this._roots = $.map(bugIDs, Number);
-        this.ui.clear();
+        this.roots = $.map(bugIDs, Number);
         var rpc = new Rpc("Tree", "get_tree",
                 { ids: bugIDs, direction: this.ui.options.type });
         rpc.done(this._getTreeDone.bind(this));
@@ -435,16 +421,25 @@ TVP.TreeController = Base.extend({
             bug.blocked = $.map(bug.blocked, Number);
             this.bugs[bug.id] = bug;
         }
-
-        for (var i=0; i < this._roots.length; i++) {
-            this.ui.addBug(this._roots[i]);
-        }
-        // Set title
-        var type = this.ui.options.type == "dependson" ? "Dependency": "Blocker";
-        var many = this._roots.length > 1 ? "s " : " ";
-        this.ui.setHeading(type + " tree for bug" + many + this._roots.join(", "));
+        this.reset();
     },
 
+    reset: function()
+    {
+        this.ui.clear();
+        for (var i=0; i < this.roots.length; i++) {
+            this.ui.addBug(this.roots[i]);
+        }
+
+    },
+
+    /**
+     * Change the parent of a bug.
+     *
+     * @param {string} change Either "add" or "remove"
+     * @param {number} fromID ID of the bug whose parents are being changed
+     * @param {number} parentID Parent bug ID to be added or removed
+     */
     changeParent: function(change, fromID, parentID)
     {
         var type = this.ui.options.type == "dependson" ? "blocked" : "dependson";
@@ -452,42 +447,53 @@ TVP.TreeController = Base.extend({
         params[type] = {};
         params[type][parentID] = change;
         // Get existing action and update params or create new
-        var action;
-        for (var i = 0; i < this._actions.length; i++) {
-            if (this._actions[i].bug.id == fromID) {
-                action = this._actions[i];
-                break;
+        var action = new TVP.ChangeDependencies(this.bugs[fromID], params);
+        action.onSuccess(this._changeDepSuccess.bind(this));
+        action.onFailure(this._actionFail.bind(this));
+        action = this._actions.addAction(action);
+    },
+
+    _changeDepSuccess: function(action)
+    {
+        // Update changes to parent bugs
+        for (var type in action.params) {
+            var rType = type == "dependson" ? "blocked" : "dependson";
+            for (var parentID in action.params[type]) {
+                var bug = this.bugs[parentID];
+                if(!bug) continue;
+                var index = bug[rType].indexOf(action.bug.id);
+                switch (action.params[type][parentID])
+                {
+                    case "add":
+                        if (index == -1) bug[rType].push(action.bug.id);
+                        this.ui.addBug(action.bug.id, parentID);
+                        break;
+                    case "remove":
+                        if (index != -1) bug[rType].splice(index, 1);
+                        this.ui.removeBug(action.bug.id, parentID);
+                        break;
+                }
             }
         }
-        if (action) {
-            action.update(params);
-        } else {
-            action = new TVP.ChangeDependencies(this.bugs[fromID], params);
-            action.onSuccess(this._changeDepSuccess.bind(this));
-            action.onFailure(this._changeDepFail.bind(this));
-            this._actions.push(action);
-        }
+        this.bugs[action.bug.id] = action.bug;
+        this.ui.message("info", action.message);
     },
 
-    _changeDepSuccess: function(bug, changes)
+    _actionFail: function(action)
     {
-        this.bugs[bug.id] = bug;
-        this.ui.message("info", "Succesfully changed dependencies of bug "
-                + bug.id);
-    },
-
-    _changeDepFail: function(bug, error)
-    {
-        this.ui.message("error", "Failed to changes dependencies of bug "
-                + bug.id + ": " + error);
+        this.ui.message("error", action.message);
+        this.reset();
     },
 
     executeActions: function()
     {
-        for (var i = 0; i < this._actions.length; i++) {
-            this._actions[i].execute();
-        }
-        this._actions = [];
+        this._actions.lastAction().onDone(this._actionsDone.bind(this));
+        this._actions.execute();
+    },
+
+    _actionsDone: function()
+    {
+        this._actions.removeChain();
     },
 });
 
@@ -497,15 +503,40 @@ TVP.TreeController = Base.extend({
  *
  * Action classes are used as helper for deferred and asynchronous modifications
  * to bugs.
+ *
+ * Actions can be chained with the addAction() method so that they get executed
+ * sequentialy when execute() is called for the first action.
+ *
+ * Actions can support combining. When action is added to a chain where there
+ * is already a similar action, the two actions get combined and only executed
+ * once.
+ *
+ * This base action does nothing and can be used as an entry point to action
+ * chain. onSuccess and onFailure callbacks for base action are never fired.
  */
 TVP.Action = Base.extend({
+    // action type
+    type: "Action",
+
+    /**
+     * Constructor
+     *
+     * @param {object} bug The bug that this action is related to
+     * @param {object} params The action params. See specific Action subclasses
+     */
     constructor: function(bug, params)
     {
         this.base();
         this.bug = $.extend({}, bug);
         this.params = params || {};
-        this._successCb = jQuery.Callbacks();
-        this._failCb = jQuery.Callbacks();
+        this.message = null;
+        this.next = null;
+        this._successCb = jQuery.Callbacks("unique");
+        this._failCb = jQuery.Callbacks("unique");
+        this._doneCb = jQuery.Callbacks("unique");
+        this._successCb.add(this._doneCb.fire);
+        this._failCb.add(this._doneCb.fire);
+        this._doneCb.add(this._executeNext.bind(this));
     },
 
     /**
@@ -515,7 +546,7 @@ TVP.Action = Base.extend({
      */
     update: function(params, deep)
     {
-        var deep = deep == undefined ? true : Boolean(deep);
+        var deep = deep == undefined ? false : Boolean(deep);
         $.extend(deep, this.params, params);
     },
 
@@ -524,14 +555,64 @@ TVP.Action = Base.extend({
      */
     execute: function()
     {
-        // Impelement in derived class
+        this._doneCb.fire(this)
+    },
+
+    _executeNext: function()
+    {
+        if (this.next != null) this.next.execute();
+    },
+
+    /**
+     * Adds new action to the chain.
+     */
+    addAction: function(action)
+    {
+        // See if we can combine these actions
+        if (this._combine(action)) return this;
+        // If not, add it as next or push forward
+        if (this.next == null) {
+            this.next = action;
+            return action;
+        } else {
+            return this.next.addAction(action);
+        }
+    },
+
+    /**
+     * Detaches the actions in chain after this one.
+     */
+    removeChain: function()
+    {
+        if (this.next == null) return;
+        this.next.removeChain();
+        this.next = null;
+    },
+
+    /**
+     * Returns the last action in this action chain.
+     */
+    lastAction: function()
+    {
+        if (this.next == null) return this;
+        return this.next.lastAction();
+    },
+
+    /**
+     * Combines two actions.
+     *
+     * Override in inherited class and return true if combining was successful,
+     * otherwise false.
+     */
+    _combine: function(action)
+    {
+        return false;
     },
 
     /**
      * Bind callback to fire on successful execution of the action.
      *
-     * The callback gets the modified bug object as first argument and made changes
-     * as the second argument.
+     * The callback gets the action object as first argument
      */
     onSuccess: function(callback)
     {
@@ -541,13 +622,26 @@ TVP.Action = Base.extend({
     /**
      * Bind callback to fire on failure to execute the action.
      *
-     * The callback gets the modified bug object as first argument and error
-     * message as the second argument.
+     * The callback gets the action object as first argument
      */
     onFailure: function(callback)
     {
         this._failCb.add(callback);
     },
+
+    /**
+     * Bind callback to fire after this action has been executed.
+     *
+     * This is callback is fired first and any onSuccess or on Failure
+     * callbacks come after this depending on the result.
+     *
+     * The callback gets the action object as first argument
+     */
+    onDone: function(callback)
+    {
+        this._doneCb.add(callback);
+    },
+
 });
 
 /**
@@ -569,6 +663,22 @@ TVP.Action = Base.extend({
  */
 TVP.ChangeDependencies = TVP.Action.extend({
 
+    type: "ChangeDependencies",
+
+    /**
+     * See Action._combine()
+     */
+    _combine: function(action)
+    {
+        if (this.type != action.type
+            || this.bug.id != action.bug.id) return false;
+        this.update(action.params, true);
+        return true;
+    },
+
+    /**
+     * See Action.execute()
+     */
     execute: function()
     {
         var changed = false;
@@ -595,7 +705,7 @@ TVP.ChangeDependencies = TVP.Action.extend({
     },
 
     /**
-     * Adds dependency
+     * Helper to add dependency
      */
     _add: function(key, bugID)
     {
@@ -606,7 +716,7 @@ TVP.ChangeDependencies = TVP.Action.extend({
     },
 
     /**
-     * Removes dependency
+     * Helper to remove dependency
      */
     _remove: function(key, bugID)
     {
@@ -623,7 +733,10 @@ TVP.ChangeDependencies = TVP.Action.extend({
     _setDepsDone: function(result)
     {
         console.log(result);
-        this._successCb.fire(this.bug, result);
+        this.message = "Succesfully changed dependencies of bug "
+                + this.bug.id;
+        // TODO parse the changes in the message
+        this._successCb.fire(this);
     },
 
     /**
@@ -631,7 +744,97 @@ TVP.ChangeDependencies = TVP.Action.extend({
      */
     _setDepsFail: function(error)
     {
-        console.log(error);
-        this._failCb.fire(this.bug, error.message);
+        this.message = "Failed to change dependencies of bug " + this.bug.id
+            + ": " + error.message;
+        this._failCb.fire(this);
     }
+});
+
+
+/**
+ * Action for creating new bug.
+ *
+ * The values are taken from the given bug and params are used to override
+ * field values.
+ *
+ * After execution the params member will contain the new bug data
+ *
+ */
+TVP.CreateNewBug = TVP.Action.extend({
+    type: "CreateNewBug",
+
+    execute: function()
+    {
+        var newBug = $.extend({}, this.bug);
+        // Clear some unwanted values
+        newBug.dependson = [];
+        newBug.blocked = [];
+        newBug.id = null;
+        this.params = $.extend(newBug, this.params);
+        var rpc = new Rpc("Bug", "create", this.params);
+        rpc.done(this._createDone.bind(this));
+        rpc.fail(this._createFail.bind(this));
+    },
+
+    /**
+     * Bug.create() RPC success.
+     */
+    _createDone: function(result)
+    {
+        this.bug.id = Number(result.id);
+        // Bug.create() does not support dependencies, so we set them separately
+        if ($.isEmptyObject(this.params.dependson) &&
+                $.isEmptyObject(this.params.blocked)) {
+            this._allDone();
+            return;
+        }
+        var rpc = new Rpc("Tree", "set_dependencies", {
+                id: this.params.id,
+                dependson: this.params.dependson,
+                blocked: this.params.blocked
+        });
+        rpc.done(this._allDone.bind(this));
+        rpc.fail(this._setDepsFail.bind(this));
+    },
+
+    /**
+     * Bug.create() RPC failure.
+     */
+    _createFail: function(error)
+    {
+        this.message = "Failed to create new bug: " + error.message;
+        this._failCb.fire(this);
+    },
+
+    /**
+     * set_dependencies() RPC success handler.
+     */
+    _allDone: function(result)
+    {
+        // update original bug dependson / blocked
+        var map = {dependson: "blocked", blocked: "dependson"};
+        for (var key in map)
+        {
+            for (var i = 0; i < this.params[key].length; i++)
+            {
+                var id = this.params[key][i];
+                if ( id == this.bug.id
+                        && this.bug[map[key]].indexOf(id) == -1){
+                    this.bug[map[key]].push(id);
+                }
+            }
+        }
+        this.message = "Successfully created bug" + this.params.id;
+        this._successCb.fire(this);
+    },
+
+    /**
+     * set_dependencies() RPC failure handler.
+     */
+    _setDepsFail: function(error)
+    {
+        this.message = "Created bug " + this.params.id + ", but failed to set "
+            + "the dependencies: " + error.message;
+        this._failCb.fire(this);
+    },
 });
