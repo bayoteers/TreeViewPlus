@@ -30,8 +30,7 @@
 <script type="text/javascript">
 $(function()
 {
-   var ui = new TVP.TreeUI($("#tree"));
-   ui.controller.init([[% last_bug_list.join(',') %]]);
+   var ui = new TVP.TreeUI($("#tree"), [[% last_bug_list.join(',') %]]);
 });
 </script>
 

@@ -35,9 +35,10 @@ TVP.TreeUI = Base.extend({
     /**
      * Constructor
      * @param element DOM element, or selector, where tree is rendered.
-     * @param {string} type Tree type "dependson" or "blocked"
+     * @param {Array.<number>} bugIDs The IDs of root bugs shown in the tree.
+     * @param {Object} options Tree options. See TVP.treeOptions
      */
-    constructor: function(element, options)
+    constructor: function(element, bugIDs, options)
     {
         this.options = $.extend({}, TVP.treeOptions, options);
         TVP.validateOptions(this.options);
@@ -73,7 +74,8 @@ TVP.TreeUI = Base.extend({
         // Add other elements
         this.elements.messageList = $("ul#tree-messages");
 
-        this.controller = new TVP.TreeController(this);
+        this.controller = new TVP.TreeController(this, bugIDs);
+        this.controller.load();
     },
 
     /**
@@ -374,11 +376,11 @@ TVP.TreeUI = Base.extend({
  *
  */
 TVP.TreeController = Base.extend({
-    constructor: function(ui)
+    constructor: function(ui, bugIDs)
     {
         this.ui = ui;
         this.bugs = {};
-        this.roots = [];
+        this.roots = $.map(bugIDs, Number);
         this._actions = new TVP.Action();
     },
     /**
@@ -386,11 +388,10 @@ TVP.TreeController = Base.extend({
      *
      * @param {Array.<number>} bugIDs - List of bug IDs to fetch
      */
-    init: function(bugIDs)
+    load: function()
     {
-        this.roots = $.map(bugIDs, Number);
         var rpc = new Rpc("Tree", "get_tree",
-                { ids: bugIDs, direction: this.ui.options.type });
+                { ids: this.roots, direction: this.ui.options.type });
         rpc.done(this._getTreeDone.bind(this));
         rpc.fail(this._getTreeFail.bind(this));
     },
@@ -424,6 +425,9 @@ TVP.TreeController = Base.extend({
         this.reset();
     },
 
+    /**
+     * Clears and rebuilds the UI.
+     */
     reset: function()
     {
         this.ui.clear();
