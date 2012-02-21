@@ -67,10 +67,10 @@ TVP.TreeUI = Base.extend({
 
         // Initialize dynatree
         this.elements.tree.dynatree({
+            keyboard: false,
             onCreate: this._onCreate.bind(this),
             onActivate: this._onActivate.bind(this),
             onDeactivate: this._onDeactivate.bind(this),
-            onKeypress: this._onKeypress.bind(this),
             onClick: this._onClick.bind(this),
             onDblClick: this._onDblClick.bind(this),
             dnd: {
@@ -101,7 +101,7 @@ TVP.TreeUI = Base.extend({
             this.elements.messageList = $(this.options.messageList).first();
             this.elements.addClass("tvp-messages");
         } else {
-            this.elements.messageList = $("<ul class='tvp-messages'");
+            this.elements.messageList = $("<ul class='tvp-messages'/>");
             this.elements.tree.append(this.elements.messageList);
         }
         var controls = $("<span class='tvp-controls'/>");
@@ -162,6 +162,8 @@ TVP.TreeUI = Base.extend({
     _onClick: function(node, event)
     {
         console.log("_onClick", node.getEventTargetType(event));
+        // Prevent dynatree stealing focus if edit form is open
+        if (this.elements.enterBug && node.isActive()) return false;
     },
 
     /**
@@ -170,25 +172,6 @@ TVP.TreeUI = Base.extend({
     _onDblClick: function(node, event)
     {
         this.openBugInNewWindow();
-    },
-
-    /**
-     * Handles key commands on dynatree
-     */
-    _onKeypress: function(node, event)
-    {
-        console.log("_onKeyPress", node, event);
-        switch (event.keyCode)
-        {
-            case 111: // o
-                node.activate();
-                this.openBugInNewWindow();
-                break;
-            case 99: // c
-                node.activate();
-                this.openEnterBug();
-                break;
-        }
     },
 
     /**
@@ -359,7 +342,7 @@ TVP.TreeUI = Base.extend({
         var link = $("<a href='#' title='Open in new window'>[O]</a>");
         link.click(this.openBugInNewWindow.bind(this));
         span.append(link);
-        link = $("<a href='#' title='Create child'>[C]</a>");
+        link = $("<a href='#' title='Create new dependency'>[+]</a>");
         link.click(this.openEnterBug.bind(this));
         span.append(link);
     },

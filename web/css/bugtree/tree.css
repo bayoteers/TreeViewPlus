@@ -1,9 +1,10 @@
-ul#tvp-messages li {
+.tvp-messages li {
     cursor: pointer;
 }
 
-ul#tvp-messages li.error {
-    background: red;
+.tvp-messages li.error {
+    color: red;
+    font-weight: bold;
 }
 
 ul.dynatree-container .tvp-hl-node {
@@ -13,6 +14,7 @@ ul.dynatree-container .tvp-hl-node {
 div.tvp-enter-bug {
     border: 1px dotted gray;
     background-color: white;
+    margin-left: 20px;
 }
 
 
