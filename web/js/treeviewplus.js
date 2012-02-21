@@ -23,6 +23,7 @@ TVP.validateOptions = function(options)
     if (["dependson", "blocked"].indexOf(options.type) == -1) {
         throw("Unknow tree type '" + options.type + "'");
     }
+    options.autoSave = Boolean(options.autoSave);
 };
 
 /**
@@ -42,6 +43,7 @@ TVP.TreeUI = Base.extend({
     {
         this.options = $.extend({}, TVP.treeOptions, options);
         TVP.validateOptions(this.options);
+        this.controller = new TVP.TreeController(this, bugIDs);
         this.elements = {};
         this.elements.tree = $(element).first();
         if (this.elements.tree.size() == 0) {
@@ -73,8 +75,29 @@ TVP.TreeUI = Base.extend({
 
         // Add other elements
         this.elements.messageList = $("ul#tree-messages");
+        var controls = $("<span class='tree-controls'/>");
+        // Direction toggle button
+        this.elements.toggleType = $("<input type='button'/>");
+        this.elements.toggleType.attr("value", this.options.type);
+        this.elements.toggleType.click(this.toggleType.bind(this));
+        controls.append(this.elements.toggleType);
+        //Save thingies.
+        this.elements.save = $("<input type='button' value='Save'/>");
+        this.elements.save.click(
+                this.controller.executeActions.bind(this.controller));
+        controls.append(this.elements.save);
+        this.elements.autoSave = $("<input type='checkbox'/>");
+        this.elements.autoSave.change(this.toggleAutoSave.bind(this));
+        controls.append(this.elements.autoSave);
+        controls.append("Auto save");
+        if (this.options.autoSave) {
+            this.elements.save.attr("disabled", "disabled");
+            this.elements.autoSave.attr("checked", "checked");
+        }
 
-        this.controller = new TVP.TreeController(this, bugIDs);
+        this.elements.tree.prepend(controls);
+
+        // Load the tree
         this.controller.load();
     },
 
@@ -340,6 +363,33 @@ TVP.TreeUI = Base.extend({
                         }
                     }
                 }, false);
+    },
+
+    toggleType: function()
+    {
+        this.options.type = this.options.type == "dependson"
+            ? "blocked" : "dependson";
+        this.elements.toggleType.val(this.options.type);
+        this.controller.load();
+    },
+
+    toggleAutoSave: function()
+    {
+        if (this.options.autoSave) {
+            if (confirm("Manual saving might not work as well as autosave " +
+                        "and unsaved changes are not tracked, so you have " +
+                        "to remember to save the changes.\n\n" +
+                        "Continue anyway?")){
+                this.elements.save.removeAttr("disabled");
+            } else {
+                this.elements.autoSave.attr("checked", "checked");
+                return;
+            }
+        } else {
+            this.elements.save.attr("disabled", "disabled");
+            this.elements.autoSave.attr("checked", "checked");
+        }
+        this.options.autoSave = !this.options.autoSave;
     },
 
     /**
