@@ -395,8 +395,13 @@ TVP.TreeUI = Base.extend({
 
     _createBug: function()
     {
-        // TODO
-        alert("Not implemented");
+        var node = this._dtree.getActiveNode();
+        var params = {};
+        this.elements.enterBug.find(".tvp-field").each(function(){
+            var field = $(this);
+            params[field.attr("name")] = field.val();
+        });
+        this.controller.createChild(node.data.bugID, params);
         this.closeEnterBug();
     },
 
@@ -470,6 +475,18 @@ TVP.TreeUI = Base.extend({
     }
 });
 
+/**
+ * Helper for cleaning the bug data returned from RPC
+ */
+TVP._cleanBugs = function(bugs) {
+    for (var bugID in bugs) {
+        var bug = bugs[bugID];
+        bug.id = Number(bug.id);
+        bug.dependson = $.map(bug.dependson, Number);
+        bug.blocked = $.map(bug.blocked, Number);
+        bugs[bug.id] = bug;
+    }
+}
 
 /**
  * Bug tree controller class.
@@ -517,14 +534,8 @@ TVP.TreeController = Base.extend({
     _getTreeDone: function(result)
     {
         // Make sure we use number bug IDs
-        this.bugs = {};
-        for (var bugID in result.bugs) {
-            var bug = result.bugs[bugID];
-            bug.id = Number(bug.id);
-            bug.dependson = $.map(bug.dependson, Number);
-            bug.blocked = $.map(bug.blocked, Number);
-            this.bugs[bug.id] = bug;
-        }
+        TVP._cleanBugs(result.bugs);
+        this.bugs = result.bugs;
         this.reset();
     },
 
@@ -584,6 +595,24 @@ TVP.TreeController = Base.extend({
         }
         this.bugs[action.bug.id] = action.bug;
         this.ui.message("info", action.message);
+    },
+
+    createChild: function(parentID, params)
+    {
+        var type = this.ui.options.type == "dependson" ? "blocked" : "dependson";
+        params[type] = [parentID];
+        var action = new TVP.CreateNewBug(this.bugs[parentID], params);
+        action.onSuccess(this._createSuccess.bind(this));
+        action.onFailure(this._actionFail.bind(this));
+        action.execute();
+    },
+
+    _createSuccess: function(action)
+    {
+        this.ui.message("info", action.message);
+        this.bugs[action.params.id] = action.params;
+        this.bugs[action.bug.id] = action.bug;
+        this.ui.addBug(action.params.id, action.bug.id);
     },
 
     _actionFail: function(action)
@@ -864,7 +893,7 @@ TVP.ChangeDependencies = TVP.Action.extend({
  * The values are taken from the given bug and params are used to override
  * field values.
  *
- * After execution the params member will contain the new bug data
+ * After execution the params member will contain the new bug data.
  *
  */
 TVP.CreateNewBug = TVP.Action.extend({
@@ -872,13 +901,14 @@ TVP.CreateNewBug = TVP.Action.extend({
 
     execute: function()
     {
-        var newBug = $.extend({}, this.bug);
-        // Clear some unwanted values
-        newBug.dependson = [];
-        newBug.blocked = [];
-        newBug.id = null;
-        this.params = $.extend(newBug, this.params);
-        var rpc = new Rpc("Bug", "create", this.params);
+        var newBug = {};
+        // Clone the required fields from parent
+        for (var field in TVP._requiredFields) {
+            newBug[field] = this.bug.internals[TVP._requiredFields[field]];
+        }
+        // extend with params
+        $.extend(newBug, this.params);
+        var rpc = new Rpc("Bug", "create", newBug);
         rpc.done(this._createDone.bind(this));
         rpc.fail(this._createFail.bind(this));
     },
@@ -888,20 +918,12 @@ TVP.CreateNewBug = TVP.Action.extend({
      */
     _createDone: function(result)
     {
-        this.bug.id = Number(result.id);
-        // Bug.create() does not support dependencies, so we set them separately
-        if ($.isEmptyObject(this.params.dependson) &&
-                $.isEmptyObject(this.params.blocked)) {
-            this._allDone();
-            return;
-        }
-        var rpc = new Rpc("Tree", "set_dependencies", {
-                id: this.params.id,
-                dependson: this.params.dependson,
-                blocked: this.params.blocked
-        });
-        rpc.done(this._allDone.bind(this));
-        rpc.fail(this._setDepsFail.bind(this));
+        // Get the newly created bug, and updates to parent
+        this.params.id = Number(result.id);
+        var rpc = new Rpc("Tree", "get_tree", {
+            ids: [result.id, this.bug.id], depth:0});
+        rpc.done(this._getDone.bind(this));
+        rpc.fail(this._getFail.bind(this));
     },
 
     /**
@@ -914,34 +936,24 @@ TVP.CreateNewBug = TVP.Action.extend({
     },
 
     /**
-     * set_dependencies() RPC success handler.
+     * get_tree() RPC success handler.
      */
-    _allDone: function(result)
+    _getDone: function(result)
     {
-        // update original bug dependson / blocked
-        var map = {dependson: "blocked", blocked: "dependson"};
-        for (var key in map)
-        {
-            for (var i = 0; i < this.params[key].length; i++)
-            {
-                var id = this.params[key][i];
-                if ( id == this.bug.id
-                        && this.bug[map[key]].indexOf(id) == -1){
-                    this.bug[map[key]].push(id);
-                }
-            }
-        }
+        TVP._cleanBugs(result.bugs);
+        this.params = result.bugs[this.params.id];
+        this.bug = result.bugs[this.bug.id];
         this.message = "Successfully created bug" + this.params.id;
         this._successCb.fire(this);
     },
 
     /**
-     * set_dependencies() RPC failure handler.
+     * get_tree() RPC failure handler.
      */
-    _setDepsFail: function(error)
+    _getFail: function(error)
     {
-        this.message = "Created bug " + this.params.id + ", but failed to set "
-            + "the dependencies: " + error.message;
+        this.message = "Failed to get the data for new bug " + this.params.id
+            + ": " + error.message;
         this._failCb.fire(this);
     },
 });

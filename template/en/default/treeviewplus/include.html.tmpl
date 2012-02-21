@@ -11,16 +11,16 @@
 
 <div class="tvp-enter-bug">
     <form enctype="multipart/form-data">
-        <select name="severity">
+        <select class="tvp-field" name="severity">
         [% FOREACH value IN bug_fields.bug_severity.legal_values %]
             <option value="[% value.name %]">[% value.name %]</option>
         [% END %]
         </select>
-        <input name="summary" size="50" value="Summary..." maxlength="255"/>
+        <input class="tvp-field" name="summary" size="50" value="Summary..." maxlength="255"/>
         <input name="save" type="button" value="Save"/>
         <input name="cancel" type="button" value="Cancel"/>
         <br/>
-        <textarea name="description" rows="5" cols="80">Description...</textarea>
+        <textarea class="tvp-field" name="description" rows="5" cols="80">Description...</textarea>
     </form>
 </div>
 
