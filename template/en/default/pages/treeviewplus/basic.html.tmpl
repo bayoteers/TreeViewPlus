@@ -20,7 +20,7 @@
   #%]
 
 [% PROCESS global/header.html.tmpl
-    title = "TreeViewPlus - "_ last_bug_list.join(', ')
+    title = "TreeViewPlus - "_ tvp_bug_ids.join(', ')
 %]
 
 [% INCLUDE treeviewplus/include.html.tmpl %]
@@ -29,7 +29,9 @@
 <script type="text/javascript">
 $(function()
 {
-   var ui = new TVP.TreeUI($("#tree"), [[% last_bug_list.join(',') %]]);
+    var ui = new TVP.TreeUI($("#tree"),
+        [[% tvp_bug_ids %]],
+        {type: "[% tvp_type %]"});
 });
 </script>
 

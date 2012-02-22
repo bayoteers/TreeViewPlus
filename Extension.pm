@@ -34,6 +34,23 @@ our $VERSION = '0.01';
 #    my ($self, $args) = @_;
 #}
 
+sub page_before_template {
+    my ($self, $args) = @_;
+    my ($vars, $page) = @$args{qw(vars page_id)};
+    if ($page eq "treeviewplus/basic.html") {
+        $vars->{tvp_bug_ids} = "";
+        $vars->{tvp_type} = "dependson";
+        my $cgi = Bugzilla->cgi;
+        if ($cgi->param('bug_ids')) {
+            $vars->{tvp_bug_ids} = $cgi->param('bug_ids');
+        }
+        if ($cgi->param('direction')) {
+            $vars->{tvp_type} = $cgi->param('direction');
+        }
+    }
+    return;
+}
+
 sub webservice {
     my ($self, $args) = @_;
     $args->{dispatch}->{Tree} = "Bugzilla::Extension::TreeViewPlus::WebService";

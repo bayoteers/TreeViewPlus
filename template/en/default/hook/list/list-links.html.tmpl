@@ -1,1 +1,5 @@
-<a href="page.cgi?id=treeviewplus/basic.html">TreeView+</a> |
+[% bug_ids = [] %]
+[% FOREACH bug IN bugs %]
+    [% bug_ids.push(bug.bug_id) %]
+[% END %]
+<a href="page.cgi?id=treeviewplus/basic.html&bug_ids=[% bug_ids.join(',') %]">TreeView+</a> |
