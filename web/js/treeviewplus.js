@@ -382,6 +382,10 @@ TVP.TreeUI = Base.extend({
         // Display
         $(".tvp-buttons", node.li).first().after(form);
         form.find("[name='severity']").focus();
+        form.find("[name='summary']").focus(function(){
+            if ($(this).val() == "Summary...") $(this).val("")});
+        form.find("[name='description']").focus(function(){
+            if ($(this).val() == "Description...") $(this).val("")});
     },
 
     closeEnterBug: function()
