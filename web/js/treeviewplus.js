@@ -349,8 +349,8 @@ TVP.TreeUI = Base.extend({
     {
         var bug = this.controller.bugs[node.data.bugID];
         var span = $("<span class='tvp-buttons'/>");
-        span.hide();
         $(nodeSpan).after(span);
+        span.hide();
         var link = $("<a href='#'>[O]</a>");
         link.attr("title", "Open bug " + node.data.bugID + " in new window");
         link.click(this.openBugInNewWindow.bind(this));

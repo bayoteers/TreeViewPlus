@@ -1,3 +1,6 @@
+.tvp-buttons {
+    display: inline;
+}
 .tvp-messages li {
     cursor: pointer;
 }
@@ -20,6 +23,7 @@ div.tvp-enter-bug {
 .tvp-closed-bug .dynatree-title{
     text-decoration: line-through;
 }
+
 
 /*******************************************************************************
  * DYNATREE STUFF BELOW
