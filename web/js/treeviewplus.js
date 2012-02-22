@@ -41,7 +41,7 @@ TVP._requiredFields = {
 };
 
 TVP._typeMap = {
-    dependson: { op: "blocked", human: "depends" },
+    dependson: { op: "blocked", human: "depends on" },
     blocked: { op: "dependson", human: "blocks" }
 };
 
@@ -351,10 +351,13 @@ TVP.TreeUI = Base.extend({
         var span = $("<span class='tvp-buttons'/>");
         span.hide();
         $(nodeSpan).after(span);
-        var link = $("<a href='#' title='Open in new window'>[O]</a>");
+        var link = $("<a href='#'>[O]</a>");
+        link.attr("title", "Open bug " + node.data.bugID + " in new window");
         link.click(this.openBugInNewWindow.bind(this));
         span.append(link);
-        link = $("<a href='#' title='Create new dependency'>[+]</a>");
+        link = $("<a href='#'>[+]</a>");
+        link.attr("title", "Create new bug that " + node.data.bugID +
+                " " + TVP._typeMap[this.options.type].human);
         link.click(this.openEnterBug.bind(this));
         span.append(link);
     },
@@ -385,6 +388,8 @@ TVP.TreeUI = Base.extend({
         var node = this._dtree.getActiveNode();
         // Clone the form
         var form = $("#tvp-templates .tvp-enter-bug").clone();
+        form.prepend("<span>Bug " + node.data.bugID + " " +
+                TVP._typeMap[this.options.type].human + "...</span>");
         this.elements.enterBug = form;
         form.attr("id", "enterbug_" + node.data.bugID);
         form.find("[name='save']").click(this._createBug.bind(this));
