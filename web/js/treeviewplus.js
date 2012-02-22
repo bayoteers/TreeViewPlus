@@ -353,7 +353,21 @@ TVP.TreeUI = Base.extend({
     openBugInNewWindow: function()
     {
         var node = this._dtree.getActiveNode();
-        window.open("show_bug.cgi?id=" + node.data.bugID, "_blank");
+        var newWindow = window.open("show_bug.cgi?id=" + node.data.bugID,
+                "bug_" + node.data.bugID);
+        $(newWindow).unload(this._bugWindowClosed.bind(this));
+    },
+
+    _bugWindowClosed: function(eventData)
+    {
+        // TODO This is just a hack for detecting the bug update in other window
+        // This works just by mere luck but it's probably better than nothing...
+        // And we are going to add the inline editing in the tree anyways...
+        var idRE = /show_bug\.cgi.*id=(\d+)/;
+        var match = idRE.exec(eventData.target.URL);
+        if (eventData.type == "unload" && match) {
+            this.controller.updateBugs([match[1]]);
+        }
     },
 
     openEnterBug: function()
@@ -617,6 +631,28 @@ TVP.TreeController = Base.extend({
     {
         this._actions.removeChain();
     },
+
+    updateBugs: function(bugIDs)
+    {
+        var rpc = new Rpc("Tree", "get_tree", {
+            ids: bugIDs, depth:0});
+        rpc.done(this._updateDone.bind(this));
+        rpc.fail(this._updateDone.bind(this));
+    },
+
+    _updateDone: function(result)
+    {
+        if (result.code) {
+            this.ui.message("error", "Failed to update bug: " + result.message);
+        } else {
+            TVP._cleanBugs(result.bugs);
+            for (var bugID in result.bugs) {
+                this.bugs[bugID] = result.bugs[bugID];
+            }
+            this.reset();
+        }
+    },
+
 });
 
 
