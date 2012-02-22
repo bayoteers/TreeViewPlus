@@ -38,7 +38,6 @@ TVP._requiredFields = {
     version: "version",
     op_sys: "op_sys",
     platform: "rep_platform",
-    priority: "priority",
 };
 
 /**
