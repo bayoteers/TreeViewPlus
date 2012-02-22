@@ -39,8 +39,8 @@ sub generate_tree {
     }
     $seen = {} unless defined $seen;
     
-    $seen->{$id} = 1;
-    my %tree;
+    my $tree = {};
+    $seen->{$id} = $tree;
 
     my $dbh = Bugzilla->dbh;
     my $sth = $dbh->prepare(
@@ -51,14 +51,14 @@ sub generate_tree {
     $sth->bind_columns(\$child);
     while ( $sth->fetch ) {
         next if ($depth == 0);
-        if ($seen->{$child}) {
-            $tree{$child} = {};
+        if (defined $seen->{$child}) {
+            $tree->{$child} = $seen->{$child};
         } else {
-            $tree{$child} = generate_tree(
+            $tree->{$child} = generate_tree(
                 $child, $depth - 1, $direction, $seen);
         }
     }
-    return \%tree;
+    return $tree;
 }
 
 1;

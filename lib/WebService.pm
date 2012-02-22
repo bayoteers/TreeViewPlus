@@ -25,6 +25,7 @@ sub get_tree {
     my ($direction) = ($params->{direction} =~ /(blocked|dependson)/);
 
     my $nodata = $params->{nodata};
+    my $includetree = $params->{tree};
 
     # Verify the given ids
     my @ids;
@@ -62,7 +63,11 @@ sub get_tree {
         }
     }
 
-    return { tree => $tree, bugs => $bugs };
+    my $result = { bugs => $bugs };
+    if ($includetree) {
+        $result->{tree} = $tree;
+    }
+    return $result;
 }
 
 sub set_dependencies {
@@ -129,6 +134,8 @@ and what B<STABLE>, B<UNSTABLE>, and B<EXPERIMENTAL> mean.
 
 =over
 
+=item B<EXPERIMENTAL>
+
 =item B<Description>
 
 Get dependency tree for bug(s).
@@ -155,20 +162,39 @@ Either 'dependson' or 'blocked'. Default is 'dependson'
 
 =back
 
-=item C<nodata> (boolean) - If set to something true, bug data is not included
+=item C<nodata> (boolean) - If true, bug data is not included
+
+In this case the bugs hash in result will only have the bug ids as keys pointing
+to null values.
+
+=item C<tree> (boolean) - If true, the plain tree sturcture is included
+
+In addition to the standard 'bugs' field the return hash will also contain
+'tree' field that contains the plain tree structure presented with bug ids
+in a hash. This is usefull for faster fetching of large structures with 
+'nodata' option when we are interested only in the bug ids and relations.
 
 =back
 
 =item B<Returns>
 
-A hash containing two items 'tree' and 'bugs'
+A hash containing field 'bugs' and optionally 'tree' if tree parameter was given
 
 =over
+
+=item C<bugs> - Hash containing bug id -> bug data or undef
+
+Bug data has the same format as return values of
+L<Bug.get|Bugzilla::WebService::Bug/get>,
+plus two extra fields 'dependson' and 'blocked'
+
+If 'nodata' was set, values are undef
 
 =item C<tree> - Hash containing the dependency trees
 
 For example if we have bugs 1, 2, 3 and 4. Bug 1 depends on 2 and 3, and bug 3
-depends on 4. The tree from get_tree({ids => [1,2]} would be following:
+depends on 4. The tree from get_tree({ids => [1,2], tree => 1} would be
+following:
 
   {
   1 => {
@@ -180,14 +206,6 @@ depends on 4. The tree from get_tree({ids => [1,2]} would be following:
   2 => {}
   }
 
-=item C<bugs> - Hash containing bug id -> bug data or undef
-
-Bug data has the same format as return values of
-L<Bug.get|Bugzilla::WebService::Bug/get>,
-plus two extra fields 'dependson' and 'blocked'
-
-If 'nodata' was set, values are undef
-
 =back
 
 =back
@@ -197,6 +215,8 @@ If 'nodata' was set, values are undef
 =item C<set_dependencies>
 
 =over
+
+=item B<EXPERIMENTAL>
 
 =item B<Description>
 
