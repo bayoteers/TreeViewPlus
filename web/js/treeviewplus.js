@@ -16,7 +16,7 @@ var TVP = {};
 TVP.treeOptions = {
     autoSave: true,
     messageList: null,
-    titleFields: ["id", "summary"],
+    titleFields: ["id", "status", "assigned_to", "summary"],
     type: "dependson",
 };
 
@@ -73,6 +73,9 @@ TVP.TreeUI = Base.extend({
             onDeactivate: this._onDeactivate.bind(this),
             onClick: this._onClick.bind(this),
             onDblClick: this._onDblClick.bind(this),
+
+            onCustomRender: this._renderNodeTitle.bind(this),
+
             dnd: {
                 preventVoidMoves: true,
                 onDragStart: this._onDragStart.bind(this),
@@ -250,11 +253,9 @@ TVP.TreeUI = Base.extend({
 
         var bug = this.controller.bugs[bugID];
         if (bug != undefined) {
-            var newNode = parentNode.addChild({
-                title: this._getTitle(bug),
-                expand: true,
-                bugID: bugID,
-            });
+            var nodeParams = { bugID: bugID, expand: true };
+            if (! bug.is_open) nodeParams.addClass = "tvp-closed-bug";
+            var newNode = parentNode.addChild(nodeParams);
 
             // TODO proper prevention of infinite loop on circular dependencies
             if (newNode.getLevel() > 999) {
@@ -321,13 +322,15 @@ TVP.TreeUI = Base.extend({
     /**
      * Constructs node title.
      */
-    _getTitle: function(bug)
+    _renderNodeTitle: function(node)
     {
+        var bug = this.controller.bugs[node.data.bugID];
         var values = [];
         for (var i = 0; i < this.options.titleFields.length; i++) {
             values.push(bug[this.options.titleFields[i]]);
         }
-        return values.join(" - ");
+        return "<a href='#' class='dynatree-title'>" +
+                    values.join(" - ") + "</a>";
     },
 
     /**

@@ -17,6 +17,9 @@ div.tvp-enter-bug {
     margin-left: 20px;
 }
 
+.tvp-closed-bug .dynatree-title{
+    text-decoration: line-through;
+}
 
 /*******************************************************************************
  * DYNATREE STUFF BELOW
