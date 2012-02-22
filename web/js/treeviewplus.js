@@ -40,6 +40,11 @@ TVP._requiredFields = {
     platform: "rep_platform",
 };
 
+TVP._typeMap = {
+    dependson: { op: "blocked", human: "depends" },
+    blocked: { op: "dependson", human: "blocks" }
+};
+
 /**
  * Bug tree UI class.
  *
@@ -109,9 +114,14 @@ TVP.TreeUI = Base.extend({
         var controls = $("<span class='tvp-controls'/>");
         // Direction toggle button
         this.elements.toggleType = $("<input type='button'/>");
-        this.elements.toggleType.attr("value", this.options.type);
+        this.elements.toggleType.attr("value", "Showing " +
+                TVP._typeMap[this.options.type].human);
         this.elements.toggleType.click(this.toggleType.bind(this));
         controls.append(this.elements.toggleType);
+        // Reload button
+        this.elements.reload = $("<input type='button' value='Reload'/>");
+        this.elements.reload.click(this.controller.load.bind(this.controller));
+        controls.append(this.elements.reload);
         //Save thingies.
         this.elements.save = $("<input type='button' value='Save'/>");
         this.elements.save.click(
@@ -428,9 +438,9 @@ TVP.TreeUI = Base.extend({
 
     toggleType: function()
     {
-        this.options.type = this.options.type == "dependson"
-            ? "blocked" : "dependson";
-        this.elements.toggleType.val(this.options.type);
+        this.options.type = TVP._typeMap[this.options.type].op;
+        this.elements.toggleType.val("Showing " +
+                TVP._typeMap[this.options.type].human);
         this.controller.load();
     },
 
@@ -513,6 +523,10 @@ TVP.TreeController = Base.extend({
      */
     load: function()
     {
+        if (this._actions.next && !confirm(
+                "There are unsaved changes and they would be lost." +
+                "\n\nContinue loading?")) return;
+        this._actions.removeChain();
         var rpc = new Rpc("Tree", "get_tree",
                 { ids: this.roots, direction: this.ui.options.type });
         rpc.done(this._getTreeDone.bind(this));
@@ -563,7 +577,7 @@ TVP.TreeController = Base.extend({
      */
     changeParent: function(change, fromID, parentID)
     {
-        var type = this.ui.options.type == "dependson" ? "blocked" : "dependson";
+        var type = TVP._typeMap[this.ui.options.type].op;
         var params = {};
         params[type] = {};
         params[type][parentID] = change;
@@ -578,7 +592,7 @@ TVP.TreeController = Base.extend({
     {
         // Update changes to parent bugs
         for (var type in action.params) {
-            var rType = type == "dependson" ? "blocked" : "dependson";
+            var rType = TVP._typeMap[type].op;
             for (var parentID in action.params[type]) {
                 var bug = this.bugs[parentID];
                 if(!bug) continue;
@@ -602,7 +616,7 @@ TVP.TreeController = Base.extend({
 
     createChild: function(parentID, params)
     {
-        var type = this.ui.options.type == "dependson" ? "blocked" : "dependson";
+        var type = TVP._typeMap[this.ui.options.type].op;
         params[type] = [parentID];
         var action = new TVP.CreateNewBug(this.bugs[parentID], params);
         action.onSuccess(this._createSuccess.bind(this));
