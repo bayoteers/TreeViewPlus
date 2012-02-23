@@ -151,7 +151,6 @@ TVP.TreeUI = Base.extend({
      */
     _onActivate: function(node)
     {
-        console.log("_onActivate", node);
         $(".tvp-buttons", node.li).first().show();
         this.highlight(node.data.bugID, true);
         // this is here because closing the enterBug breaks deactivate
@@ -163,7 +162,6 @@ TVP.TreeUI = Base.extend({
      */
     _onDeactivate: function(node)
     {
-        console.log("_onDeactivate", node);
         $(".tvp-buttons", node.li).first().hide();
         this.highlight(node.data.bugID, false);
     },
@@ -173,7 +171,6 @@ TVP.TreeUI = Base.extend({
      */
     _onClick: function(node, event)
     {
-        console.log("_onClick", node.getEventTargetType(event));
         // Prevent dynatree stealing focus if edit form is open
         if (this.elements.enterBug && node.isActive()) return false;
     },
@@ -191,7 +188,6 @@ TVP.TreeUI = Base.extend({
      */
     _onDragStart: function(node)
     {
-        console.log("_onDragStart", node);
         var parentNode = node.getParent();
         if (parentNode == this._dtree.getRoot()) return true;
         this.controller.changeParent("remove", node.data.bugID,
@@ -204,7 +200,6 @@ TVP.TreeUI = Base.extend({
      */
     _onDrop: function(target, source, hitMode, ui, draggable)
     {
-        console.log("_onDrop", target, source, hitMode);
         if (target.isDescendantOf(source)) return false;
         if (hitMode == "over") {
             // Expand target node
@@ -223,7 +218,6 @@ TVP.TreeUI = Base.extend({
 
     _onDragStop: function(node)
     {
-        console.log("_onDragStop", node);
         if (this.options.autoSave) {
             this.controller.executeActions();
         }
@@ -912,7 +906,6 @@ TVP.ChangeDependencies = TVP.Action.extend({
      */
     _setDepsDone: function(result)
     {
-        console.log(result);
         this.message = "Succesfully changed dependencies of bug "
                 + this.bug.id;
         // TODO parse the changes in the message
