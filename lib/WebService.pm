@@ -97,6 +97,113 @@ sub set_dependencies {
 }
 
 
+
+my %API_KEYS = (
+    status => "bug_status",
+    resolution => undef,
+    severity => "bug_severity",
+    assigned_to => undef,
+    comment => undef, # This is not directly a bug field
+);
+
+sub update_bug {
+    my ($self, $params) = validate(@_, 'ids');
+    my $user = Bugzilla->login(LOGIN_REQUIRED);
+
+    my $ids = delete $params->{ids};
+    defined $ids || ThrowCodeError('param_required', { param => 'ids' });
+
+    my @bugs = map { Bugzilla::Bug->check($_) } @$ids;
+    my %values = %$params;
+
+    # Remove unsupported keys and convert api key -> to bug field if needed
+    for my $key (keys %values) {
+        if (!grep(/^$key$/, keys %API_KEYS)) {
+            delete $values{$key};
+        }
+        #elsif (defined $API_KEYS{$key}) {
+        #    $values{$API_KEYS{$key}} = delete $values{$key};
+        #}
+    }
+
+    # Extract comment if provided
+    my %comment;
+    %comment = %{delete $values{comment}} if (ref $values{comment} eq "HASH");
+    if (exists $comment{comment}) {
+        $comment{body} = delete $comment{comment};
+    }
+
+    foreach my $bug (@bugs) {
+        if (!$user->can_edit_product($bug->product_obj->id) ) {
+            ThrowUserError("product_edit_denied",
+                          { product => $bug->product });
+        }
+        # Handle special cases
+        if (exists $comment{body}) {
+            $bug->add_comment($comment{body},
+                { isprivate => $comment{is_private} });
+        }
+        if (exists $values{status}) {
+            # Status and reolution needs to be set
+            $bug->set_status(delete $values{status},
+                {resolution => delete $values{resolution}}
+            );
+        }
+        # Set the rest in bulk
+        $bug->set_all(\%values);
+    }
+
+    my $dbh = Bugzilla->dbh;
+    my %all_changes;
+    $dbh->bz_start_transaction();
+    foreach my $bug (@bugs) {
+        $all_changes{$bug->id} = $bug->update();
+    }
+    $dbh->bz_commit_transaction();
+
+    my @result;
+    my %api_name = reverse %API_KEYS;
+    foreach my $bug (@bugs) {
+        my %hash = (
+            id               => $self->type('int', $bug->id),
+            last_change_time => $self->type('dateTime', $bug->delta_ts),
+            changes          => {},
+        );
+
+        # alias is returned in case users pass a mixture of ids and aliases,
+        # so that they can know which set of changes relates to which value
+        # they passed.
+        if (Bugzilla->params->{'usebugaliases'}) {
+            $hash{alias} = $self->type('string', $bug->alias);
+        }
+        else {
+            # For API reasons, we always want the alias field to appear, we
+            # just don't want it to have a value if aliases are turned off.
+            $hash{alias} = $self->type('string', '');
+        }
+
+        my %changes = %{ $all_changes{$bug->id} };
+        foreach my $field (keys %changes) {
+            my $change = $changes{$field};
+            my $api_field = $api_name{$field} || $field;
+            # We normalize undef to an empty string, so that the API
+            # stays consistent for things like Deadline that can become
+            # empty.
+            $change->[0] = '' if !defined $change->[0];
+            $change->[1] = '' if !defined $change->[1];
+            $hash{changes}->{$api_field} = {
+                removed => $self->type('string', $change->[0]),
+                added   => $self->type('string', $change->[1])
+            };
+        }
+
+        push(@result, \%hash);
+    }
+
+    return { bugs => \@result };
+
+}
+
 sub _bug_to_hash {
     my ($self, $bug) = @_;
     my $bug_hash = Bugzilla::WebService::Bug::_bug_to_hash($self, $bug);
@@ -171,7 +278,7 @@ to null values.
 
 In addition to the standard 'bugs' field the return hash will also contain
 'tree' field that contains the plain tree structure presented with bug ids
-in a hash. This is usefull for faster fetching of large structures with 
+in a hash. This is usefull for faster fetching of large structures with
 'nodata' option when we are interested only in the bug ids and relations.
 
 =back
