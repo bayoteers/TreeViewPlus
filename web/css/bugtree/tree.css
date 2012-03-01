@@ -14,10 +14,11 @@ ul.dynatree-container .tvp-hl-node {
     background: lightblue;
 }
 
-div.tvp-enter-bug {
+div.tvp-bug-widget {
     border: 1px dotted gray;
     background-color: white;
     margin-left: 20px;
+    display: none;
 }
 
 .tvp-closed-bug .dynatree-title{

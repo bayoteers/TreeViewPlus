@@ -46,6 +46,19 @@ TVP._typeMap = {
 };
 
 /**
+ * Helper for cleaning the bug data returned from RPC
+ */
+TVP._cleanBugs = function(bugs) {
+    for (var bugID in bugs) {
+        var bug = bugs[bugID];
+        bug.id = Number(bug.id);
+        bug.dependson = $.map(bug.dependson, Number);
+        bug.blocked = $.map(bug.blocked, Number);
+        bugs[bug.id] = bug;
+    }
+}
+
+/**
  * Bug tree UI class.
  *
  * This class is resposible for rendering the dynatree and additional controls,
@@ -136,6 +149,8 @@ TVP.TreeUI = Base.extend({
             this.elements.autoSave.attr("checked", "checked");
         }
 
+        this.elements.bugWidget = null;
+
         this.elements.tree.prepend(controls);
     },
 
@@ -143,7 +158,21 @@ TVP.TreeUI = Base.extend({
      * Called after node has been created in dynatree
      */
     _onCreate: function(node, nodeSpan) {
-        this._addNodeButtons(node, nodeSpan);
+        // Add the bug widgets after standard node elements
+        var bug = this.controller.bugs[node.data.bugID];
+        var span = $("#tvp-templates .tvp-buttons").clone();
+        $(nodeSpan).after(span);
+        span.hide();
+        var link = span.find("a.tvp-open");
+        link.attr("title", "Open bug " + node.data.bugID + " in new window");
+        link.click(this.openBugInNewWindow.bind(this));
+
+        link = span.find("a.tvp-add");
+        link.attr("title", "Create new bug that " + node.data.bugID +
+                " " + TVP._typeMap[this.options.type].human);
+        link.click(this.openNewBug.bind(this));
+
+        span.after($("#tvp-templates .tvp-bug-widget").clone());
     },
 
     /**
@@ -153,8 +182,8 @@ TVP.TreeUI = Base.extend({
     {
         $(".tvp-buttons", node.li).first().show();
         this.highlight(node.data.bugID, true);
-        // this is here because closing the enterBug breaks deactivate
-        this.closeEnterBug();
+        // this is here because closing the widget breaks deactivate
+        this.closeBugWidget();
     },
 
     /**
@@ -171,8 +200,8 @@ TVP.TreeUI = Base.extend({
      */
     _onClick: function(node, event)
     {
-        // Prevent dynatree stealing focus if edit form is open
-        if (this.elements.enterBug && node.isActive()) return false;
+        // Prevent dynatree stealing focus from widgets
+        if (node.getEventTargetType(event) == null) return false;
     },
 
     /**
@@ -180,6 +209,8 @@ TVP.TreeUI = Base.extend({
      */
     _onDblClick: function(node, event)
     {
+        // Prevent dynatree stealing focus from widgets
+        if (node.getEventTargetType(event) == null) return false;
         this.openBugInNewWindow();
     },
 
@@ -336,85 +367,60 @@ TVP.TreeUI = Base.extend({
                     values.join(" - ") + "</a>";
     },
 
-    /**
-     * Adds the additional controll buttons to tree node.
-     */
-    _addNodeButtons: function(node, nodeSpan)
-    {
-        var bug = this.controller.bugs[node.data.bugID];
-        var span = $("<span class='tvp-buttons'/>");
-        $(nodeSpan).after(span);
-        span.hide();
-        var link = $("<a href='#'>[O]</a>");
-        link.attr("title", "Open bug " + node.data.bugID + " in new window");
-        link.click(this.openBugInNewWindow.bind(this));
-        span.append(link);
-        link = $("<a href='#'>[+]</a>");
-        link.attr("title", "Create new bug that " + node.data.bugID +
-                " " + TVP._typeMap[this.options.type].human);
-        link.click(this.openEnterBug.bind(this));
-        span.append(link);
-    },
-
     openBugInNewWindow: function()
     {
         var node = this._dtree.getActiveNode();
-        var newWindow = window.open("show_bug.cgi?id=" + node.data.bugID,
-                "bug_" + node.data.bugID);
-        $(newWindow).unload(this._bugWindowClosed.bind(this));
+        window.open("show_bug.cgi?id=" + node.data.bugID, "_blank");
     },
 
-    _bugWindowClosed: function(eventData)
+    openNewBug: function()
     {
-        // TODO This is just a hack for detecting the bug update in other window
-        // This works just by mere luck but it's probably better than nothing...
-        // And we are going to add the inline editing in the tree anyways...
-        var idRE = /show_bug\.cgi.*id=(\d+)/;
-        var match = idRE.exec(eventData.target.URL);
-        if (eventData.type == "unload" && match) {
-            this.controller.updateBugs([match[1]]);
-        }
-    },
-
-    openEnterBug: function()
-    {
-        if (this.elements.enterBug) return;
+        if (this.elements.bugWidget) this.closeBugWidget();
         var node = this._dtree.getActiveNode();
-        // Clone the form
-        var form = $("#tvp-templates .tvp-enter-bug").clone();
-        form.prepend("<span>Bug " + node.data.bugID + " " +
-                TVP._typeMap[this.options.type].human + "...</span>");
-        this.elements.enterBug = form;
-        form.attr("id", "enterbug_" + node.data.bugID);
+        this.elements.bugWidget = $(".tvp-bug-widget", node.li).first();
+
+        this.elements.bugWidget.find(".tvp-bug-widget-title").html(
+                "Bug " + node.data.bugID + " " +
+                TVP._typeMap[this.options.type].human + "...");
+
+        var container = this.elements.bugWidget.find(
+                ".tvp-bug-widget-container");
+        var form = $("#tvp-templates .tvp-new-bug-form").clone();
         form.find("[name='save']").click(this._createBug.bind(this));
-        form.find("[name='cancel']").click(this.closeEnterBug.bind(this));
-        // Display
-        $(".tvp-buttons", node.li).first().after(form);
-        form.find("[name='severity']").focus();
+        form.find("[name='cancel']").click(this.closeBugWidget.bind(this));
         form.find("[name='summary']").focus(function(){
-            if ($(this).val() == "Summary...") $(this).val("")});
+            if ($(this).val() == "Summary...") {
+                $(this).val("");
+            }});
         form.find("[name='description']").focus(function(){
-            if ($(this).val() == "Description...") $(this).val("")});
+            if ($(this).val() == "Description...") {
+                $(this).val("");
+            }});
+        container.append(form);
+        this.elements.bugWidget.show("fast");
     },
 
-    closeEnterBug: function()
+    closeBugWidget: function()
     {
-        if (!this.elements.enterBug) return;
-        this.elements.enterBug.remove();
-        this.elements.enterBug = null;
-        this._dtree.getActiveNode().focus();
+        if (this.elements.bugWidget == null) return;
+        this.elements.bugWidget.hide("fast", function(){
+            $(this).find(".tvp-bug-widget-title").empty();
+            $(this).find(".tvp-bug-widget-container").empty();
+        });
+        this.elements.bugWidget = null;
     },
 
     _createBug: function()
     {
         var node = this._dtree.getActiveNode();
         var params = {};
-        this.elements.enterBug.find(".tvp-field").each(function(){
+        var form = this.elements.bugWidget.find("form");
+        form.find(".tvp-new-bug-field").each(function(){
             var field = $(this);
             params[field.attr("name")] = field.val();
         });
         this.controller.createChild(node.data.bugID, params);
-        this.closeEnterBug();
+        this.closeBugWidget();
     },
 
     /**
@@ -486,19 +492,6 @@ TVP.TreeUI = Base.extend({
         }
     }
 });
-
-/**
- * Helper for cleaning the bug data returned from RPC
- */
-TVP._cleanBugs = function(bugs) {
-    for (var bugID in bugs) {
-        var bug = bugs[bugID];
-        bug.id = Number(bug.id);
-        bug.dependson = $.map(bug.dependson, Number);
-        bug.blocked = $.map(bug.blocked, Number);
-        bugs[bug.id] = bug;
-    }
-}
 
 /**
  * Bug tree controller class.
