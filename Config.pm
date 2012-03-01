@@ -25,6 +25,21 @@ use strict;
 use constant NAME => 'TreeViewPlus';
 
 use constant REQUIRED_MODULES => [
+    {
+       package => 'libjson-rpc-perl',
+       module  => 'JSON::RPC',
+       version => 1.0,
+    },
+    {
+       package => 'libtest-taint-perl',
+       module  => 'Test::Taint',
+       version => 1.0,
+    },
+    {
+       package => 'libsoap-lite-perl',
+       module  => 'SOAP::Lite',
+       version => 0.714,
+    },
 ];
 
 use constant OPTIONAL_MODULES => [
