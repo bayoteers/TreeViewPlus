@@ -375,7 +375,8 @@ TVP.TreeUI = Base.extend({
 
     openNewBug: function()
     {
-        if (this.elements.bugWidget) this.closeBugWidget();
+        // TODO gracefully close the existing widget
+        if (this.elements.bugWidget) return;
         var node = this._dtree.getActiveNode();
         this.elements.bugWidget = $(".tvp-bug-widget", node.li).first();
 
@@ -432,7 +433,7 @@ TVP.TreeUI = Base.extend({
                 {
                     if (node.data.bugID == bugID) {
                         var title = $("a.dynatree-title", node.li).first();
-                        if (on) {
+                        if (on && !node.isActive()) {
                             title.addClass("tvp-hl-node");
                         } else {
                             title.removeClass("tvp-hl-node");
