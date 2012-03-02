@@ -172,6 +172,9 @@ TVP.TreeUI = Base.extend({
                 " " + TVP._typeMap[this.options.type].human);
         link.click(this.openNewBug.bind(this));
 
+        link = span.find("a.tvp-edit");
+        link.click(this.openEditBug.bind(this));
+
         span.after($("#tvp-templates .tvp-bug-widget").clone());
     },
 
@@ -305,6 +308,12 @@ TVP.TreeUI = Base.extend({
             }
         }
         // XXX Should we add lazy nodes for yet unknown bugs?
+
+        parentNode.sortChildren(function(nodeA, nodeB){
+            if (nodeA.data.bugID > nodeB.data.bugID) return 1;
+            if (nodeA.data.bugID < nodeB.data.bugID) return -1;
+            return 0;
+        });
     },
 
     /**
@@ -341,16 +350,19 @@ TVP.TreeUI = Base.extend({
         var bugID = Number(bugID);
         var parentID = Number(parentID);
         var root = this._dtree.getRoot();
+        var nodesToRemove = [];
 
         this._dtree.visit(function(node) {
             if(node.data.bugID == bugID) {
                 var parentNode = node.getParent();
-                if (!parentID && parentNode == root
-                        || parentNode.data.bugID == parentID) {
-                    node.remove();
+                if (!parentID || parentNode.data.bugID == parentID) {
+                    nodesToRemove.push(node);
                 }
             }
         });
+        for (var i=0; i < nodesToRemove.length; i++) {
+            nodesToRemove[i].remove();
+        }
     },
 
     /**
@@ -371,6 +383,16 @@ TVP.TreeUI = Base.extend({
     {
         var node = this._dtree.getActiveNode();
         window.open("show_bug.cgi?id=" + node.data.bugID, "_blank");
+    },
+
+    closeBugWidget: function()
+    {
+        if (this.elements.bugWidget == null) return;
+        this.elements.bugWidget.hide("fast", function(){
+            $(this).find(".tvp-bug-widget-title").empty();
+            $(this).find(".tvp-bug-widget-container").empty();
+        });
+        this.elements.bugWidget = null;
     },
 
     openNewBug: function()
@@ -401,16 +423,6 @@ TVP.TreeUI = Base.extend({
         this.elements.bugWidget.show("fast");
     },
 
-    closeBugWidget: function()
-    {
-        if (this.elements.bugWidget == null) return;
-        this.elements.bugWidget.hide("fast", function(){
-            $(this).find(".tvp-bug-widget-title").empty();
-            $(this).find(".tvp-bug-widget-container").empty();
-        });
-        this.elements.bugWidget = null;
-    },
-
     _createBug: function()
     {
         var node = this._dtree.getActiveNode();
@@ -422,6 +434,48 @@ TVP.TreeUI = Base.extend({
         });
         this.controller.createChild(node.data.bugID, params);
         this.closeBugWidget();
+    },
+
+    openEditBug: function()
+    {
+        if (this.elements.bugWidget) return;
+        var node = this._dtree.getActiveNode();
+        var bug = this.controller.bugs[node.data.bugID];
+        this.elements.bugWidget = $(".tvp-bug-widget", node.li).first();
+
+        this.elements.bugWidget.find(".tvp-bug-widget-title").html(
+                "Edit bug " + node.data.bugID + "...");
+
+        var container = this.elements.bugWidget.find(
+                ".tvp-bug-widget-container");
+        var form = $("#tvp-templates .tvp-edit-bug-form").clone();
+        form.find("[name='save']").click(this._editBug.bind(this));
+        form.find("[name='cancel']").click(this.closeBugWidget.bind(this));
+
+        form.find(".tvp-bug-field").each(function(){
+            var field = $(this);
+            field.val(bug[field.attr("name")]);
+        });
+
+        container.append(form);
+        this.elements.bugWidget.show("fast");
+    },
+
+    _editBug: function()
+    {
+        var node = this._dtree.getActiveNode();
+        var params = {};
+        var form = this.elements.bugWidget.find("form");
+        form.find(".tvp-bug-field").each(function(){
+            var field = $(this);
+            params[field.attr("name")] = field.val();
+        });
+        var comment = form.find("[name='comment']").val();
+        if (comment) {
+            params.comment = {};
+            params.comment.body = comment;
+        }
+        this.controller.updateBug(node.data.bugID, params);
     },
 
     /**
@@ -486,11 +540,9 @@ TVP.TreeUI = Base.extend({
             $(this).remove();
         });
         this.elements.messageList.prepend(mElement);
-        if (type != "error") {
-            mElement.delay(5000).fadeOut("slow", function() {
-                $(this).remove();
-            });
-        }
+        mElement.delay(5000).fadeOut("slow", function() {
+            $(this).remove();
+        });
     }
 });
 
@@ -607,6 +659,9 @@ TVP.TreeController = Base.extend({
         this.ui.message("info", action.message);
     },
 
+    /**
+     * Creates a new child bug for the given bug.
+     */
     createChild: function(parentID, params)
     {
         var type = TVP._typeMap[this.ui.options.type].op;
@@ -616,13 +671,41 @@ TVP.TreeController = Base.extend({
         action.onFailure(this._actionFail.bind(this));
         action.execute();
     },
-
     _createSuccess: function(action)
     {
         this.ui.message("info", action.message);
         this.bugs[action.params.id] = action.params;
         this.bugs[action.bug.id] = action.bug;
         this.ui.addBug(action.params.id, action.bug.id);
+    },
+
+    /**
+     * Updates the given bug.
+     */
+    updateBug: function(bugID, params)
+    {
+        var action = new TVP.UpdateBug(this.bugs[bugID], params);
+        action.onSuccess(this._updateSuccess.bind(this));
+        action.onFailure(this._updateFail.bind(this));
+        action.execute();
+    },
+    _updateSuccess: function(action)
+    {
+        this.ui.closeBugWidget();
+        this.ui.message("info", action.message);
+        this.bugs[action.bug.id] = action.bug;
+        this.ui.removeBug(action.bug.id);
+        var rType = TVP._typeMap[this.ui.options.type].op;
+        for (var i = 0; i < action.bug[rType].length; i++) {
+            this.ui.addBug(action.bug.id, action.bug[rType][i]);
+        }
+        if (this.roots.indexOf(action.bug.id) != -1){
+            this.ui.addBug(action.bug.id);
+        }
+    },
+    _updateFail: function(action)
+    {
+        this.ui.message("error", action.message);
     },
 
     _actionFail: function(action)
@@ -641,28 +724,6 @@ TVP.TreeController = Base.extend({
     {
         this._actions.removeChain();
     },
-
-    updateBugs: function(bugIDs)
-    {
-        var rpc = new Rpc("Tree", "get_tree", {
-            ids: bugIDs, depth:0});
-        rpc.done(this._updateDone.bind(this));
-        rpc.fail(this._updateDone.bind(this));
-    },
-
-    _updateDone: function(result)
-    {
-        if (result.code) {
-            this.ui.message("error", "Failed to update bug: " + result.message);
-        } else {
-            TVP._cleanBugs(result.bugs);
-            for (var bugID in result.bugs) {
-                this.bugs[bugID] = result.bugs[bugID];
-            }
-            this.reset();
-        }
-    },
-
 });
 
 
@@ -984,6 +1045,57 @@ TVP.CreateNewBug = TVP.Action.extend({
     _getFail: function(error)
     {
         this.message = "Failed to get the data for new bug " + this.params.id
+            + ": " + error.message;
+        this._failCb.fire(this);
+    },
+});
+
+/**
+ * Action for updating a bug
+ *
+ * Params should be in the format accepted by Tree.update_bug() RPC call.
+ *
+ */
+TVP.UpdateBug = TVP.Action.extend({
+    type: "UpdateBug",
+
+    execute: function()
+    {
+        this.params.ids = [this.bug.id];
+        var rpc = new Rpc("Tree", "update_bug", this.params);
+        rpc.done(this._updateDone.bind(this));
+        rpc.fail(this._updateFail.bind(this));
+    },
+
+    /**
+     * update_bug() RPC success handler.
+     */
+    _updateDone: function(result)
+    {
+        var changeMessages = [];
+        for (var i=0; i < result.bugs.length; i++) {
+            if (result.bugs[i].id != this.bug.id) continue;
+            var changes = result.bugs[i].changes;
+            for (key in changes) {
+                this.bug[key] = changes[key].added;
+                changeMessages.push(key + " to '" + changes[key].added + "'");
+            }
+        }
+        if (changeMessages.length) {
+            this.message = "Successfully changed bug " + this.bug.id + " " +
+                    changeMessages.join(", ");
+        } else {
+            this.message = "No changes made to bug " + this.bug.id;
+        }
+        this._successCb.fire(this);
+    },
+
+    /**
+     * update_bug() RPC failure handler.
+     */
+    _updateFail: function(error)
+    {
+        this.message = "Failed to update bug " + this.bug.id
             + ": " + error.message;
         this._failCb.fire(this);
     },
