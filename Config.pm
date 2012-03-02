@@ -28,7 +28,7 @@ use constant REQUIRED_MODULES => [
     {
        package => 'libjson-rpc-perl',
        module  => 'JSON::RPC',
-       version => 1.0,
+       version => 0.96,
     },
     {
        package => 'libtest-taint-perl',
