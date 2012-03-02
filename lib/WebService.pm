@@ -99,6 +99,7 @@ sub set_dependencies {
 
 
 my %API_KEYS = (
+    summary => "short_desc",
     status => "bug_status",
     resolution => undef,
     severity => "bug_severity",
