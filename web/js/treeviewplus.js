@@ -284,9 +284,11 @@ TVP.TreeUI = Base.extend({
         // Clear tree
         var root = this._dtree.getRoot();
         root.removeChildren();
-        this.updateBugListLink();
     },
 
+    /**
+     * Sets the bug list link target based on shown bugs
+     */
     updateBugListLink: function()
     {
         var ids = [];
@@ -612,6 +614,7 @@ TVP.TreeController = Base.extend({
      */
     load: function()
     {
+        this.ui.clear();
         if (this._actions.next && !confirm(
                 "There are unsaved changes and they would be lost." +
                 "\n\nContinue loading?")) return;
@@ -642,7 +645,7 @@ TVP.TreeController = Base.extend({
         // Make sure we use number bug IDs
         TVP._cleanBugs(result.bugs);
         this.bugs = result.bugs;
-        this.reset();
+        this._populate();
     },
 
     /**
@@ -651,10 +654,15 @@ TVP.TreeController = Base.extend({
     reset: function()
     {
         this.ui.clear();
+        this._populate();
+    },
+
+    _populate: function()
+    {
         for (var i=0; i < this.roots.length; i++) {
             this.ui.addBug(this.roots[i]);
         }
-
+        this.ui.updateBugListLink();
     },
 
     /**
