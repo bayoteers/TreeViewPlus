@@ -15,6 +15,7 @@ var TVP = {};
  */
 TVP.treeOptions = {
     autoSave: true,
+    showSaveControls: false,
     messageList: null,
     titleFields: ["id", "status", "assigned_to", "summary"],
     type: "dependson",
@@ -117,6 +118,7 @@ TVP.TreeUI = Base.extend({
 
     _addUiElements: function()
     {
+        // TODO Move elements in a template
         if (this.options.messageList) {
             this.elements.messageList = $(this.options.messageList).first();
             this.elements.addClass("tvp-messages");
@@ -135,18 +137,27 @@ TVP.TreeUI = Base.extend({
         this.elements.reload = $("<input type='button' value='Reload'/>");
         this.elements.reload.click(this.controller.load.bind(this.controller));
         controls.append(this.elements.reload);
+        // Collapse / expand
+        this.elements.expand = $("<input type='button' value='Expand all'/>");
+        this.elements.expand.click(this.expandAll.bind(this));
+        controls.append(this.elements.expand);
+        this.elements.collapse = $("<input type='button' value='Collapse all'/>");
+        this.elements.collapse.click(this.collapseAll.bind(this));
+        controls.append(this.elements.collapse);
         //Save thingies.
-        this.elements.save = $("<input type='button' value='Save'/>");
-        this.elements.save.click(
-                this.controller.executeActions.bind(this.controller));
-        controls.append(this.elements.save);
-        this.elements.autoSave = $("<input type='checkbox'/>");
-        this.elements.autoSave.change(this.toggleAutoSave.bind(this));
-        controls.append(this.elements.autoSave);
-        controls.append("Auto save");
-        if (this.options.autoSave) {
-            this.elements.save.attr("disabled", "disabled");
-            this.elements.autoSave.attr("checked", "checked");
+        if (this.options.showSaveControls) {
+            this.elements.save = $("<input type='button' value='Save'/>");
+            this.elements.save.click(
+                    this.controller.executeActions.bind(this.controller));
+            controls.append(this.elements.save);
+            this.elements.autoSave = $("<input type='checkbox'/>");
+            this.elements.autoSave.change(this.toggleAutoSave.bind(this));
+            controls.append(this.elements.autoSave);
+            controls.append("Auto save");
+            if (this.options.autoSave) {
+                this.elements.save.attr("disabled", "disabled");
+                this.elements.autoSave.attr("checked", "checked");
+            }
         }
 
         this.elements.bugWidget = null;
@@ -521,6 +532,16 @@ TVP.TreeUI = Base.extend({
             this.elements.autoSave.attr("checked", "checked");
         }
         this.options.autoSave = !this.options.autoSave;
+    },
+
+    expandAll: function()
+    {
+        this._dtree.visit(function(node) {node.expand(true)});
+    },
+
+    collapseAll: function()
+    {
+        this._dtree.visit(function(node) {node.expand(false)});
     },
 
     /**
