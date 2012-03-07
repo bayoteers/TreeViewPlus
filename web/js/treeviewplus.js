@@ -127,16 +127,19 @@ TVP.TreeUI = Base.extend({
             this.elements.tree.append(this.elements.messageList);
         }
         var controls = $("<span class='tvp-controls'/>");
+
         // Direction toggle button
         this.elements.toggleType = $("<input type='button'/>");
         this.elements.toggleType.attr("value", "Showing " +
                 TVP._typeMap[this.options.type].human);
         this.elements.toggleType.click(this.toggleType.bind(this));
         controls.append(this.elements.toggleType);
+
         // Reload button
         this.elements.reload = $("<input type='button' value='Reload'/>");
         this.elements.reload.click(this.controller.load.bind(this.controller));
         controls.append(this.elements.reload);
+
         // Collapse / expand
         this.elements.expand = $("<input type='button' value='Expand all'/>");
         this.elements.expand.click(this.expandAll.bind(this));
@@ -144,6 +147,7 @@ TVP.TreeUI = Base.extend({
         this.elements.collapse = $("<input type='button' value='Collapse all'/>");
         this.elements.collapse.click(this.collapseAll.bind(this));
         controls.append(this.elements.collapse);
+
         //Save thingies.
         if (this.options.showSaveControls) {
             this.elements.save = $("<input type='button' value='Save'/>");
@@ -160,9 +164,13 @@ TVP.TreeUI = Base.extend({
             }
         }
 
-        this.elements.bugWidget = null;
+        // View as bug list link
+        this.elements.bugListLink = $("<a>View all as a bug list</a>");
+        controls.append(this.elements.bugListLink);
 
         this.elements.tree.prepend(controls);
+
+        this.elements.bugWidget = null;
     },
 
     /**
@@ -276,6 +284,21 @@ TVP.TreeUI = Base.extend({
         // Clear tree
         var root = this._dtree.getRoot();
         root.removeChildren();
+        this.updateBugListLink();
+    },
+
+    updateBugListLink: function()
+    {
+        var ids = [];
+        for (bugID in this.controller.bugs) {
+            if (this.controller.bugs.hasOwnProperty(bugID)) ids.push(bugID);
+        }
+        if (!$.isEmptyObject(ids)) {
+            this.elements.bugListLink.attr("href",
+                "buglist.cgi?bug_id=" + ids.join(","));
+        } else {
+            this.elements.bugListLink.attr("href", "#");
+        }
     },
 
     /**
@@ -698,6 +721,7 @@ TVP.TreeController = Base.extend({
         this.bugs[action.params.id] = action.params;
         this.bugs[action.bug.id] = action.bug;
         this.ui.addBug(action.params.id, action.bug.id);
+        this.ui.updateBugListLink();
     },
 
     /**
