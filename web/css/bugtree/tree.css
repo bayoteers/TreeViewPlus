@@ -25,6 +25,10 @@ div.tvp-bug-widget {
     text-decoration: line-through;
 }
 
+#tvp-bug-fields-select {
+    list-style: none;
+}
+
 
 /*******************************************************************************
  * DYNATREE STUFF BELOW

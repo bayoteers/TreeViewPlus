@@ -75,6 +75,7 @@ TVP.TreeUI = Base.extend({
     constructor: function(element, bugIDs, options)
     {
         this.options = $.extend({}, TVP.treeOptions, options);
+        this._optionsFromCookies();
         TVP.validateOptions(this.options);
         this.controller = new TVP.TreeController(this, bugIDs);
         this.elements = {};
@@ -114,6 +115,14 @@ TVP.TreeUI = Base.extend({
 
         // Load the tree
         this.controller.load();
+    },
+
+    _optionsFromCookies: function() {
+        var fields = $.cookie("TVP.titleFields");
+        if (fields) {
+            fields = fields.split(",");
+            this.options.titleFields = fields;
+        }
     },
 
     _addUiElements: function()
@@ -164,6 +173,23 @@ TVP.TreeUI = Base.extend({
             }
         }
 
+        // Change displayed info
+        this.elements.displayOptions = $("#tvp-display-options").dialog({
+            autoOpen: false,
+            modal: true,
+            buttons: {
+                'Apply': $.proxy(this, "applyDisplayOptions"),
+                'Cancel': function() { $(this).dialog("close"); },
+            },
+            open: $.proxy(this, "onDisplayOptionsOpen"),
+        });
+        this.elements.bugFieldsSelect = this.elements.displayOptions.find(
+                "#tvp-bug-fields-select").sortable();
+
+        var button = $("<input type='button' value='Display options'/>").click(
+                $.proxy(function() { this.elements.displayOptions.dialog("open");}, this));
+        controls.append(button);
+
         // View as bug list link
         this.elements.bugListLink = $("<a>View all as a bug list</a>");
         controls.append(this.elements.bugListLink);
@@ -172,6 +198,34 @@ TVP.TreeUI = Base.extend({
 
         this.elements.bugWidget = null;
     },
+
+    onDisplayOptionsOpen: function()
+    {
+        console.log("onDisplayOptionsOpen");
+        this.elements.bugFieldsSelect.find(":checked").each(
+                function() {$(this).prop("checked", false);});
+
+        for (var i = this.options.titleFields.length - 1; i >= 0; i--) {
+            var name = this.options.titleFields[i];
+            var check = this.elements.bugFieldsSelect.find(
+                    "input[name='" + name + "']");
+            check.prop("checked", true);
+            this.elements.bugFieldsSelect.prepend(check.parent());
+        }
+    },
+
+    applyDisplayOptions: function()
+    {
+        var fields = [];
+        this.elements.bugFieldsSelect.find(":checked").each(function() {
+            fields.push($(this).attr("name"));
+        });
+        this.elements.displayOptions.dialog("close");
+        $.cookie("TVP.titleFields", fields.join(","));
+        this.options.titleFields = fields;
+        this._dtree.visit(function(node) {node.render();});
+    },
+
 
     /**
      * Called after node has been created in dynatree
