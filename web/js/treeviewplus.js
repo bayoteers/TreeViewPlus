@@ -37,8 +37,6 @@ TVP._requiredFields = {
     product: "product",
     component: "component",
     version: "version",
-    op_sys: "op_sys",
-    platform: "rep_platform",
 };
 
 TVP._typeMap = {
