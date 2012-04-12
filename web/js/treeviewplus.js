@@ -546,6 +546,7 @@ TVP.TreeUI = Base.extend({
         });
 
         container.append(form);
+        container.find("[name='assigned_to']").userautocomplete();
         this.elements.bugWidget.show("fast");
     },
 
