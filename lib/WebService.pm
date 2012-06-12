@@ -107,8 +107,14 @@ my %API_KEYS = (
     comment => undef, # This is not directly a bug field
 );
 
+
 sub update_bug {
     my ($self, $params) = validate(@_, 'ids');
+
+    if (BUGZILLA_VERSION =~ /^4\..*/) {
+        return Bugzilla::WebService::Bug::update($self, $params);
+    }
+
     my $user = Bugzilla->login(LOGIN_REQUIRED);
 
     my $ids = delete $params->{ids};
