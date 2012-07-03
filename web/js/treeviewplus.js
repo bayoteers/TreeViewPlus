@@ -32,13 +32,6 @@ TVP.validateOptions = function(options)
     options.autoSave = Boolean(options.autoSave);
 };
 
-// Non visible fields required when creating new bugs
-TVP._requiredFields = {
-    product: "product",
-    component: "component",
-    version: "version",
-};
-
 TVP._typeMap = {
     dependson: { op: "blocked", human: "depends on" },
     blocked: { op: "dependson", human: "blocks" }
@@ -1096,13 +1089,19 @@ TVP.ChangeDependencies = TVP.Action.extend({
  */
 TVP.CreateNewBug = TVP.Action.extend({
     type: "CreateNewBug",
+    // Non visible fields required when creating new bugs
+    _requiredFields: {
+        product: 1,
+        component: 1,
+        version: 1,
+    },
 
     execute: function()
     {
         var newBug = {};
         // Clone the required fields from parent
-        for (var field in TVP._requiredFields) {
-            newBug[field] = this.bug.internals[TVP._requiredFields[field]];
+        for (var field in this._requiredFields) {
+            newBug[field] = this.bug[field];
         }
         // extend with params
         $.extend(newBug, this.params);
