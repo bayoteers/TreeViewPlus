@@ -72,7 +72,7 @@ sub template_before_process {
         assigned_to_realname => 'assigned_to',
         short_short_desc => 'summary',
     );
-    for my $field (keys Bugzilla::Bug::FIELD_MAP) {
+    for my $field (keys %Bugzilla::Bug::FIELD_MAP) {
         $fieldmap{Bugzilla::Bug::FIELD_MAP->{$field}} = $field;
     }
     $vars->{field_map_json} = encode_json(\%fieldmap);
