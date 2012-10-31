@@ -70,7 +70,10 @@ sub template_before_process {
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
     my %fieldmap = (
         assigned_to_realname => 'assigned_to',
-        short_short_desc => 'summary',
+        short_short_desc     => 'summary',
+        bug_status           => 'status',
+        changeddate          => 'last_change_time',
+        #TODO add all columns which have matching field in RPC bug object
     );
     for my $field (keys %Bugzilla::Bug::FIELD_MAP) {
         $fieldmap{Bugzilla::Bug::FIELD_MAP->{$field}} = $field;
@@ -89,9 +92,10 @@ sub _dynatree {
         $result{title} = $id;
         my $bug = $buginfo->{$id};
         if (defined $bug) {
-            $result{bug} = $bug;
+            $result{in_results} = 1;
+            $result{columns} = $bug;
             $result{title} .= " | ".
-                    join(" | ", map($bug->{$_} || '---', @$columns));
+                    join(" | ", map(defined $bug->{$_} ? $bug->{$_} : '---', @$columns));
         }
     }
 

@@ -46,14 +46,15 @@ TVP.nodeBugGetDone = function(bugID) {
     var bug = TVP.bugs[bugID];
     TVP.getNodesByBugID(bugID).forEach(function(node){
         // Construct title if this node is not loaded
-        if (!node.data.bug) {
-            node.data.bug = {};
+        if (!node.data.columns) {
+            node.data.columns = {};
             DISPLAY_COLUMNS.forEach(function(field) {
-                var value = bug.value(extName(field)) || "---";
-                node.data.bug[field] = value;
+                var value = bug.value(extName(field));
+                if (value == undefined) value = "---";
+                node.data.columns[field] = value;
                 node.data.title += " | " + value;
             });
-            node.render();
+            if (node.isVisible()) node.render();
         }
 
         // Add the bug widgets after standard node elements
@@ -140,7 +141,7 @@ TVP.treeData = {
      */
     onRender: function(node, nodeSpan)
     {
-        if(!node.data.bug) $(nodeSpan).css("opacity", "0.5");
+        if(!node.data.in_results) $(nodeSpan).css("opacity", "0.5");
     },
 
     onClick: function(node, ev)
@@ -158,9 +159,19 @@ TVP.treeData = {
         if (TVP.bugs[node.data.bug_id]) {
             $(".tvp-buttons", node.li).first().show();
         } else {
-            Bug.get(node.data.bug_id, function(bug) {
-                TVP.bugs[node.data.bug_id] = bug;
-                TVP.nodeBugGetDone(node.data.bug_id);
+            var ids = [node.data.bug_id];
+            if(!node.data.columns) {
+                node.visit(function(child) {
+                    if (ids.indexOf(child.data.bug_id) == -1) {
+                        ids.push(child.data.bug_id);
+                    }
+                });
+            }
+            Bug.get(ids, function(bugs) {
+                bugs.forEach(function(bug) {
+                    TVP.bugs[bug.value('id')] = bug;
+                    TVP.nodeBugGetDone(bug.value('id'));
+                })
                 $(".tvp-buttons", node.li).first().show();
             });
         }
