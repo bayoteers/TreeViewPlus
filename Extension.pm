@@ -94,8 +94,8 @@ sub _dynatree {
         if (defined $bug) {
             $result{in_results} = 1;
             $result{columns} = $bug;
-            $result{title} .= " | ".
-                    join(" | ", map(defined $bug->{$_} ? $bug->{$_} : '---', @$columns));
+            $result{title} .= " &bull; ".
+                    join(" &bull; ", map(defined $bug->{$_} ? $bug->{$_} : '---', @$columns));
         }
     }
 

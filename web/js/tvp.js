@@ -18,9 +18,9 @@ function extName(field)
  */
 TVP.cmpNodes = function(a,b) {
     // TODO: Add support for buglist column ordering
-    if (!a.data.bug && b.data.bug) {
+    if (!a.data.in_results && b.data.in_results) {
         return 1;
-    } else if (!b.data.bug && a.data.bug) {
+    } else if (!b.data.in_results && a.data.in_results) {
         return  -1;
     } else {
         return a.data.bug_id > b.data.bug_id ? 1 :
@@ -48,16 +48,18 @@ TVP.nodeBugGetDone = function(bugID) {
         // Construct title if this node is not loaded
         if (!node.data.columns) {
             node.data.columns = {};
+            node.data.title = bug.id;
             DISPLAY_COLUMNS.forEach(function(field) {
                 var value = bug.value(extName(field));
-                if (value == undefined) value = "---";
+                if (value == undefined) value = " ";
                 node.data.columns[field] = value;
-                node.data.title += " | " + value;
+                node.data.title += " &bull; " + value;
             });
             if (node.isVisible()) node.render();
         }
 
         // Add the bug widgets after standard node elements
+        $('.tvp-buttons', node.li).first().remove();
         var buttons = $("#tvp-templates .tvp-buttons").clone();
         $('span.dynatree-node', node.li).first().after(buttons);
 
@@ -73,23 +75,26 @@ TVP.nodeBugGetDone = function(bugID) {
             severity: BB_CONFIG.default.severity,
             priority: BB_CONFIG.default.priority,
         };
-        newBug[TVP_FROM] = bug.value('id');
+        newBug[TVP_FROM] = bug.id;
         buttons.find("a.tvp-add").bugentry({
             defaults: newBug,
-            fields: TVP_BUGENTRY_FIELDS,
-            success: TVP.addBugNode,
+            title: "Add new dependency to: " + bug.id,
+            success: function(ev,result) {TVP.addBugNode(result.bug)},
         });
 
-        buttons.find("a.tvp-edit").click(function() {
-            alert("Not implemented");
+        buttons.find("a.tvp-edit").bugentry({
+            bug: bug,
+            title: "Edit: " + bug.id,
+            success: function(ev,result) {TVP.updateBugNode(result.bug)},
         });
     });
 }
 
-TVP.addBugNode = function(ev, result)
+TVP.addBugNode = function(bug)
 {
+    TVP.bugs[bug.id] = bug;
     var parents = [];
-    var parentIDs = result.bug.value(TVP_FROM) || [];
+    var parentIDs = bug.value(TVP_FROM) || [];
     TVP.tree.visit(function(node) {
         var bugId = Number(node.data.bug_id);
         if (parentIDs.indexOf(bugId) != -1) {
@@ -97,17 +102,33 @@ TVP.addBugNode = function(ev, result)
         }
     }, false);
     var nodeData = {
-        bug: result.bug,
-        bug_id: result.bug_id,
-        title: result.bug_id,
+        bug_id: bug.id,
+        title: bug.id,
     };
-    DISPLAY_COLUMNS.forEach(function(field) {
-        nodeData.title += " | " + (result.bug.value(extName(field)) || "---");
-    });
     parents.forEach(function(node) {
         node.addChild(nodeData);
         node.expand();
     });
+    TVP.nodeBugGetDone(bug.id);
+}
+
+TVP.updateBugNode = function(bug)
+{
+    TVP.bugs[bug.id] = bug;
+    var parents = bug.value(TVP_FROM) || [];
+    var children = bug.value(TVP_TO) || [];
+    TVP.getNodesByBugID(bug.id).forEach(function(node) {
+        if (parents.indexOf(Number(node.getParent().data.bug_id)) == -1) {
+            node.remove();
+            return;
+        }
+        (node.getChildren() || []).forEach(function(child) {
+            if(children.indexOf(Number(child.data.bug_id)) == -1) child.remove();
+        });
+        // TODO add new children
+        node.data.columns = null;
+    });
+    TVP.nodeBugGetDone(bug.id);
 }
 
 /**
@@ -146,6 +167,8 @@ TVP.treeData = {
 
     onClick: function(node, ev)
     {
+        //Prevent dynatree from stealing focus when buttons are clicked
+        if (node.getEventTargetType(event) == null) return false;
     },
 
     onDblClick: function(node, ev)
@@ -169,8 +192,8 @@ TVP.treeData = {
             }
             Bug.get(ids, function(bugs) {
                 bugs.forEach(function(bug) {
-                    TVP.bugs[bug.value('id')] = bug;
-                    TVP.nodeBugGetDone(bug.value('id'));
+                    TVP.bugs[bug.id] = bug;
+                    TVP.nodeBugGetDone(bug.id);
                 })
                 $(".tvp-buttons", node.li).first().show();
             });
