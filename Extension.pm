@@ -25,6 +25,7 @@ use base qw(Bugzilla::Extension);
 
 # This code for this is in ./extensions/TreeViewPlus/lib/Util.pm
 use Bugzilla::Extension::TreeViewPlus::Util;
+use JSON qw(encode_json);
 
 our $VERSION = '0.01';
 
@@ -49,6 +50,60 @@ sub page_before_template {
         }
     }
     return;
+}
+
+sub template_before_process {
+    my ($self, $params) = @_;
+    return unless ($params->{file} eq 'list/tvp.html.tmpl');
+
+    my $vars = $params->{vars};
+    my @bug_ids;
+    my %buginfo;
+    for my $bug (@{$vars->{bugs}}) {
+        $buginfo{$bug->{bug_id}} = $bug;
+        push(@bug_ids, $bug->{bug_id});
+    }
+    $vars->{tree_json} = encode_json(
+        _dynatree(\%buginfo, $vars->{displaycolumns}, get_tree(\@bug_ids)));
+
+    $vars->{bug_info_json} = encode_json(\%buginfo);
+    $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
+    my %fieldmap = (
+        assigned_to_realname => 'assigned_to',
+        short_short_desc => 'summary',
+    );
+    for my $field (keys Bugzilla::Bug::FIELD_MAP) {
+        $fieldmap{Bugzilla::Bug::FIELD_MAP->{$field}} = $field;
+    }
+    $vars->{field_map_json} = encode_json(\%fieldmap);
+    my $entry_fields = [split(/\s/, Bugzilla->params->{tvp_bug_entry_fields})];
+    $vars->{bug_entry_fields} = encode_json($entry_fields);
+}
+
+sub _dynatree {
+    my ($buginfo, $columns, $node, $id) = @_;
+    my %result;
+    if (defined $id ) {
+        $result{bug_id} = $id;
+        $result{href} = "show_bug.cgi?id=$id";
+        $result{title} = $id;
+        my $bug = $buginfo->{$id};
+        if (defined $bug) {
+            $result{bug} = $bug;
+            $result{title} .= " | ".
+                    join(" | ", map($bug->{$_} || '---', @$columns));
+        }
+    }
+
+    my @children = map {_dynatree($buginfo, $columns, $node->{$_}, $_)} keys %$node;
+    $result{children} = \@children;
+    return \%result;
+}
+
+sub config_add_panels {
+    my ($self, $args) = @_;
+    my $modules = $args->{panel_modules};
+    $modules->{TreeViewPlus} = "Bugzilla::Extension::TreeViewPlus::Config";
 }
 
 sub webservice {

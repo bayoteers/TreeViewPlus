@@ -23,22 +23,23 @@ package Bugzilla::Extension::TreeViewPlus::Util;
 use strict;
 use base qw(Exporter);
 our @EXPORT = qw(
-    generate_tree    
+    generate_tree
+    get_tree
 );
 
 
 sub generate_tree {
     my ($id, $depth, $direction, $seen) = @_;
 
-    # Set the direction of travelsal, default id from blocked to dependencies
-    my $from = "blocked";
-    if ( $direction eq $from ) {
-        $from = "dependson";
-    } else {
+    # Set the direction of travelsal, default is from blocked to dependencies
+    if (!grep($_ eq $direction, qw(dependson blocked))) {
         $direction = "dependson";
     }
+    my $from = $direction eq 'blocked' ? 'dependson' : 'blocked';
+
+    $depth = -1 if !defined $depth;
     $seen = {} unless defined $seen;
-    
+
     my $tree = {};
     $seen->{$id} = $tree;
 
@@ -58,7 +59,57 @@ sub generate_tree {
                 $child, $depth - 1, $direction, $seen);
         }
     }
-    return $tree;
+    return wantarray ? ($tree, $seen) : $tree;
+}
+
+sub _get_node {
+    my ($root, $id) = @_;
+    my $node = $root->{$id};
+    return $node if defined $node;
+    for my $child (keys %$root) {
+        $node = _get_node($root->{$child}, $id);
+        return $node if defined $node;
+    }
+    return undef;
+}
+
+sub _add_arc {
+    my ($root, $tail, $head) = @_;
+    my $tail_node = _get_node($root, $tail);
+    $tail_node = $root->{$tail} = {} unless defined $tail_node;
+    my $head_node = _get_node($root, $head) || {};
+    delete $root->{$head} if defined $root->{$head};
+    $tail_node->{$head} = $head_node;
+}
+
+sub get_tree {
+    my ($ids, $depth, $direction, $root, $seen) = @_;
+    $depth = -1 unless defined $depth;
+    $seen = [] unless defined $seen;
+    $root = {} unless defined $root;
+    return $root if (!@$ids || $depth == 0);
+
+    # Set the direction of travelsal, default is from blocked to dependencies
+    $direction ||= 'dependson';
+    if (!grep($_ eq $direction, qw(dependson blocked))) {
+        $direction = "dependson";
+    }
+    my $from = $direction eq 'blocked' ? 'dependson' : 'blocked';
+    for my $id (@$ids) {
+        push(@$seen, $id);
+    }
+    my $dbh = Bugzilla->dbh;
+    my $depends = $dbh->selectall_arrayref(
+        "SELECT $from, $direction FROM dependencies
+          WHERE ".$dbh->sql_in($from, $ids)
+    );
+    my @next;
+    for my $arc (@$depends) {
+        my ($tail, $head) = @$arc;
+        _add_arc($root, $tail, $head);
+        push(@next, $head) unless grep($head == $_, @$seen);
+    }
+    return get_tree(\@next, $depth-1, $direction, $root, $seen);
 }
 
 1;
@@ -67,8 +118,7 @@ __END__
 
 =head1 NAME
 
-Bugzilla::Extension::TreeViewPlus::Util - Utility functions for working with
-bug dependency trees.
+Bugzilla::Extension::TreeViewPlus::Util
 
 =head1 SYNOPSIS
 
@@ -81,7 +131,7 @@ bug dependency trees.
 
 =head1 DESCRIPTION
 
-This package contains functions used by the TreeVievPlus extensions
+This package contains utility functions for working with bug dependency trees.
 
 =head1 FUNCTIONS
 
