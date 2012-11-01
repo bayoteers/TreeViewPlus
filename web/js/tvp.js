@@ -168,12 +168,12 @@ TVP.treeData = {
     onClick: function(node, ev)
     {
         //Prevent dynatree from stealing focus when buttons are clicked
-        if (node.getEventTargetType(event) == null) return false;
+        if (node.getEventTargetType(ev) == null) return false;
     },
 
     onDblClick: function(node, ev)
     {
-        if (node.getEventTargetType(event) == null) return false;
+        if (node.getEventTargetType(ev) == null) return false;
         TVP.openBugInNewWindow(node.data.bug_id);
     },
 
