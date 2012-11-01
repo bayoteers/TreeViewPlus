@@ -146,12 +146,69 @@ TVP.highlight = function(bugID, on)
     TVP.getNodesByBugID(bugID).forEach(function(node) {
         if (on && !node.isActive()) {
             node.makeVisible();
-            $("a.dynatree-title", node.li).first().addClass("tvp-hl-node");
+            $(node.li).addClass("tvp-hl-node");
             return 'skip';
         } else {
-            $("a.dynatree-title", node.li).first().removeClass("tvp-hl-node");
+            $(node.li).removeClass("tvp-hl-node");
         }
     });
+}
+
+/**
+ * Called when dragging of node starts.
+ */
+TVP.onDragStart = function(node)
+{
+    if (!TVP.dndEnabled) return false;
+    var parentNode = node.getParent();
+    if (parentNode == TVP.tree.getRoot()) return true;
+    node.data.old_parent = parentNode.data.bug_id;
+    return true;
+}
+
+/**
+ * Called when node is dropped somewhere on tree.
+ */
+TVP.onDrop = function(target, source, hitMode)
+{
+    if (target.isDescendantOf(source)) return false;
+    if (hitMode == "over") {
+        // Expand target node
+        target.expand(true);
+    } else {
+        hitMode = "over";
+        target = target.getParent();
+    }
+    source.move(target, hitMode);
+    if (target != TVP.tree.getRoot()) {
+        source.data.new_parent = target.data.bug_id;
+    }
+    return true;
+}
+
+TVP.onDragStop = function(node)
+{
+    var add = node.data.new_parent;
+    var remove = node.data.old_parent;
+    node.data.old_parent = node.data.new_parent = null;
+
+    if (!(add || remove) || add == remove) return;
+    if (!TVP.bugs[node.data.bug_id]){
+        Bug.get(node.data.bug_id, function(bug) {
+            TVP.bugs[bug.id] = bug;
+            TVP.changeBugParent(bug, add, remove);
+        });
+    } else {
+        TVP.changeBugParent(TVP.bugs[node.data.bug_id], add, remove);
+    }
+}
+
+TVP.changeBugParent = function(bug, add, remove)
+{
+    if (add) bug.add(TVP_FROM, add);
+    if (remove) bug.remove(TVP_FROM, remove);
+    var saving = bug.save();
+    if (saving) saving.done(TVP.updateBugNode);
 }
 
 /**
@@ -161,7 +218,7 @@ TVP.treeData = {
     /**
      * Tree Options
      */
-    minExpandLevel: 2,
+    minExpandLevel: 1,
     debugLevel: 0,
 
     /**
@@ -213,8 +270,20 @@ TVP.treeData = {
         $(".tvp-buttons", node.li).first().hide();
         TVP.highlight(node.data.bug_id, false);
     },
-}
 
+    dnd: {
+        preventVoidMoves: true,
+        onDragStart: TVP.onDragStart,
+        onDragStop: TVP.onDragStop,
+        onDrop: TVP.onDrop,
+        // Needed for the dragging visual guides
+        onDragEnter:function(){return true;},
+        onDragOver: function(node, sourceNode, hitMode) {
+            // Just to show that dropping node under it self is a no-no
+            if (node.isDescendantOf(sourceNode)) return false;
+        },
+    }
+}
 
 
 /**
@@ -222,13 +291,31 @@ TVP.treeData = {
  */
 TVP.init = function(tree) {
     $.extend(TVP.treeData, tree);
-    $("#tvp_container").dynatree(TVP.treeData);
-    TVP.tree = $("#tvp_container").dynatree("getTree");
-    TVP.tree.visit(function(node) {
-        node.data.bug_id = Number(node.data.bug_id);
+
+    // Hackety hack... something needs to be done about the bug field
+    // definitions.
+    Bug.initFields().done(function() {
+        $("#tvp_container").dynatree(TVP.treeData);
+        TVP.tree = $("#tvp_container").dynatree("getTree");
+        TVP.tree.visit(function(node) {
+            node.data.bug_id = Number(node.data.bug_id);
+        });
+        // Sort tree
+        TVP.tree.getRoot().sortChildren(TVP.cmpNodes, true);
+        $("#tvp_dnd_switch").prop("disabled", false).change(function() {
+            TVP.dndEnabled = $(this).prop("checked");
+        });
+        $("#tvp_expand").click(function() {
+            TVP.tree.visit(function(node) {
+                node.expand(true);
+            });
+        });
+        $("#tvp_collapse").click(function() {
+            TVP.tree.visit(function(node) {
+                node.expand(false);
+            });
+        });
     });
-    // Sort tree
-    TVP.tree.getRoot().sortChildren(TVP.cmpNodes, true);
 }
 
 

@@ -16,11 +16,20 @@
                     column = columns.$id
             %]
         [% END %]
+        <td>
+            [<a href="#" id="tvp_expand">Expand All</a>]
+            [<a href="#" id="tvp_collapse">Collapse All</a>]
+            <span>
+                Drag'n'Drop<input id="tvp_dnd_switch"
+                    type="checkbox" disabled="disabled"
+                    style="vertical-align: top;"/>
+            </span>
+        </td>
     </tr>
 </table>
 
 [% BLOCK columnheader %]
-  <th style="white-space:nowrap; border-left:1px dotted gray;">
+  <th class="tvp_header">
     [%- abbrev.$id.title || field_descs.$id || column.title FILTER html -%]
   </th>
 [% END %]
