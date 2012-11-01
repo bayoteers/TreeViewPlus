@@ -5,34 +5,14 @@ th.tvp_header {
 .tvp-buttons {
     display: inline;
 }
-.tvp-messages li {
-    cursor: pointer;
-}
-
-.tvp-messages li.error {
-    color: red;
-    font-weight: bold;
-}
 
 ul.dynatree-container .tvp-hl-node {
     background: lightblue;
 }
 
-div.tvp-bug-widget {
-    border: 1px dotted gray;
-    background-color: white;
-    margin-left: 20px;
-    display: none;
-}
-
 .tvp-closed-bug .dynatree-title{
     text-decoration: line-through;
 }
-
-#tvp-bug-fields-select {
-    list-style: none;
-}
-
 
 /*******************************************************************************
  * DYNATREE STUFF BELOW

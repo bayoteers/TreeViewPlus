@@ -1,3 +1,3 @@
-[%IF field.name == "dependson" || field.name == "blocked" %]
-    &nbsp;<a href="page.cgi?id=treeviewplus/basic.html&bug_ids=[% bug.bug_id %]&direction=[% field.name %]">TreeView+</a>
+[%IF field.name == "dependson" || field.name == "blocked" && bug %]
+    &nbsp;<a href="buglist.cgi?bug_id=[% bug.bug_id %]&amp;bug_id_type=anddependson&amp;format=tvp&tvp_dir=[% field.name %]">TreeView+</a>
 [% END %]
