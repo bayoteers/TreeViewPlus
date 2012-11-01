@@ -40,7 +40,7 @@ use constant COL_MAP => {
     reporter_realname    => 'creator',
     short_short_desc     => 'summary',
 
-    map { Bugzilla::Bug::FIELD_MAP->{$_} => $_ } keys Bugzilla::Bug::FIELD_MAP
+    map { Bugzilla::Bug::FIELD_MAP->{$_} => $_ } keys %{ Bugzilla::Bug::FIELD_MAP() }
 };
 
 
