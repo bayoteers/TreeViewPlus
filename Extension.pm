@@ -25,32 +25,25 @@ use base qw(Bugzilla::Extension);
 
 # This code for this is in ./extensions/TreeViewPlus/lib/Util.pm
 use Bugzilla::Extension::TreeViewPlus::Util;
+use Bugzilla::Bug;
+
 use JSON qw(encode_json);
 
 our $VERSION = '0.01';
 
-# See the documentation of Bugzilla::Hook ("perldoc Bugzilla::Hook" 
-# in the bugzilla directory) for a list of all available hooks.
-#sub install_update_db {
-#    my ($self, $args) = @_;
-#}
+use constant COL_MAP => {
+    # columns which are not in the FIELD_MAP
+    assigned_to_realname => 'assigned_to',
+    changeddate          => 'last_change_time',
+    opendate             => 'creation_time',
+    qa_contact_realname  => 'qa_contact',
+    reporter_realname    => 'creator',
+    short_short_desc     => 'summary',
 
-sub page_before_template {
-    my ($self, $args) = @_;
-    my ($vars, $page) = @$args{qw(vars page_id)};
-    if ($page eq "treeviewplus/basic.html") {
-        $vars->{tvp_bug_ids} = "";
-        $vars->{tvp_type} = "dependson";
-        my $cgi = Bugzilla->cgi;
-        if ($cgi->param('bug_ids')) {
-            $vars->{tvp_bug_ids} = $cgi->param('bug_ids');
-        }
-        if ($cgi->param('direction')) {
-            $vars->{tvp_type} = $cgi->param('direction');
-        }
-    }
-    return;
-}
+    map { Bugzilla::Bug::FIELD_MAP->{$_} => $_ } keys Bugzilla::Bug::FIELD_MAP
+};
+
+
 
 sub template_before_process {
     my ($self, $params) = @_;
@@ -68,17 +61,7 @@ sub template_before_process {
 
     $vars->{bug_info_json} = encode_json(\%buginfo);
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
-    my %fieldmap = (
-        assigned_to_realname => 'assigned_to',
-        short_short_desc     => 'summary',
-        bug_status           => 'status',
-        changeddate          => 'last_change_time',
-        #TODO add all columns which have matching field in RPC bug object
-    );
-    for my $field (keys %Bugzilla::Bug::FIELD_MAP) {
-        $fieldmap{Bugzilla::Bug::FIELD_MAP->{$field}} = $field;
-    }
-    $vars->{field_map_json} = encode_json(\%fieldmap);
+    $vars->{field_map_json} = encode_json(COL_MAP);
     my $entry_fields = [split(/\s/, Bugzilla->params->{tvp_bug_entry_fields})];
     $vars->{bug_entry_fields} = encode_json($entry_fields);
 }
@@ -102,12 +85,6 @@ sub _dynatree {
     my @children = map {_dynatree($buginfo, $columns, $node->{$_}, $_)} keys %$node;
     $result{children} = \@children;
     return \%result;
-}
-
-sub config_add_panels {
-    my ($self, $args) = @_;
-    my $modules = $args->{panel_modules};
-    $modules->{TreeViewPlus} = "Bugzilla::Extension::TreeViewPlus::Config";
 }
 
 sub webservice {

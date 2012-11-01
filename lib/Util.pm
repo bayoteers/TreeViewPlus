@@ -23,44 +23,8 @@ package Bugzilla::Extension::TreeViewPlus::Util;
 use strict;
 use base qw(Exporter);
 our @EXPORT = qw(
-    generate_tree
     get_tree
 );
-
-
-sub generate_tree {
-    my ($id, $depth, $direction, $seen) = @_;
-
-    # Set the direction of travelsal, default is from blocked to dependencies
-    if (!grep($_ eq $direction, qw(dependson blocked))) {
-        $direction = "dependson";
-    }
-    my $from = $direction eq 'blocked' ? 'dependson' : 'blocked';
-
-    $depth = -1 if !defined $depth;
-    $seen = {} unless defined $seen;
-
-    my $tree = {};
-    $seen->{$id} = $tree;
-
-    my $dbh = Bugzilla->dbh;
-    my $sth = $dbh->prepare(
-        "SELECT $direction FROM dependencies ".
-        "WHERE $from = ?");
-    $sth->execute($id);
-    my $child;
-    $sth->bind_columns(\$child);
-    while ( $sth->fetch ) {
-        next if ($depth == 0);
-        if (defined $seen->{$child}) {
-            $tree->{$child} = $seen->{$child};
-        } else {
-            $tree->{$child} = generate_tree(
-                $child, $depth - 1, $direction, $seen);
-        }
-    }
-    return wantarray ? ($tree, $seen) : $tree;
-}
 
 sub _get_node {
     my ($root, $id) = @_;
@@ -123,26 +87,13 @@ __END__
 
 Bugzilla::Extension::TreeViewPlus::Util
 
-=head1 SYNOPSIS
-
-  # get direct dependencies of bug 1
-  my $tree = generate_tree(1, 1);
-  # get the complete dependency tree of bug 1
-  my $tree = generate_tree(1, -1);
-  # get two levels of bugs that bug 1 blocks
-  my $tree = generate_tree(1, 2, 'blocked')
-
 =head1 DESCRIPTION
 
-This package contains utility functions for working with bug dependency trees.
+Tree generation functions
 
 =head1 FUNCTIONS
 
-=head2 Tree handling
-
-=over
-
-=item C<generate_tree($id, $depth, $direction)>
+=head2 C<get_tree($ids, $depth, $direction)>
 
 =over
 
@@ -154,20 +105,14 @@ Recursively generates the bug dependency tree
 
 =over
 
-=item C<id> - Bug id
+=item C<ids> - List of ids to start the tree from
 
 =item C<depth> - Maximum depth to go to
 
 =item C<direction> - Direction of the tree travelsal
 
-Either 'blocked', to get the tree of bugs this one blocks, or 'dependson', to
-get the tree of bugs this one depends on. Defaults to 'dependson'
-
-=item C<seen> - Hashref where keys present the already seen bug IDs
-
-To prevent following some bug set the value with bugs id key to 1. Usually
-this is only used internally in the recursive calls to skip already processed
-bugs if they appear more than once in the tree.
+Either 'blocked', to get the tree of bugs these block, or 'dependson', to
+get the tree of bugs these bus depend on. Defaults to 'dependson'
 
 =back
 
@@ -177,5 +122,4 @@ Hashref containing the tree stucture.
 
 =back
 
-=back
 
