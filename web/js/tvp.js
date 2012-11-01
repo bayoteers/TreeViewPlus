@@ -57,36 +57,43 @@ TVP.nodeBugGetDone = function(bugID) {
             });
             if (node.isVisible()) node.render();
         }
+    });
+}
 
-        // Add the bug widgets after standard node elements
-        $('.tvp-buttons', node.li).first().remove();
-        var buttons = $("#tvp-templates .tvp-buttons").clone();
-        $('span.dynatree-node', node.li).first().after(buttons);
+TVP.showNodeButtons = function(node) {
+    var buttons = $(node.li).children("span.tvp-buttons");
+    if (buttons.size()) {
+        buttons.show();
+        return;
+    }
+    // Create buttons if they do not exist
+    buttons = $("#tvp-templates .tvp-buttons").clone();
+    $('span.dynatree-node', node.li).first().after(buttons);
 
-        buttons.hide()
-        buttons.find("a.tvp-open").click(function(){
-            TVP.openBugInNewWindow(node.data.bug_id);
-        });
+    buttons.find("a.tvp-open").click(function(){
+        TVP.openBugInNewWindow(node.data.bug_id);
+    });
 
-        var newBug = {
-            product: bug.value('product'),
-            component: bug.value('component'),
-            version: bug.value('version'),
-            severity: BB_CONFIG.default.severity,
-            priority: BB_CONFIG.default.priority,
-        };
-        newBug[TVP_FROM] = bug.id;
-        buttons.find("a.tvp-add").bugentry({
-            defaults: newBug,
-            title: "Add new dependency to: " + bug.id,
-            success: function(ev,result) {TVP.addBugNode(result.bug)},
-        });
+    var bug = TVP.bugs[node.data.bug_id];
+    var clone = ['product', 'component', 'version'];
+    var defaults = {
+        severity: BB_CONFIG.default.severity,
+        priority: BB_CONFIG.default.priority,
+    };
+    defaults[TVP_FROM] = bug.id;
+    buttons.find("a.tvp-add").bugentry({
+        clone: clone,
+        defaults: defaults,
+        bug: bug,
+        title: "Add new dependency to: " + bug.id,
+        success: function(ev,result) {TVP.addBugNode(result.bug)},
+    });
 
-        buttons.find("a.tvp-edit").bugentry({
-            bug: bug,
-            title: "Edit: " + bug.id,
-            success: function(ev,result) {TVP.updateBugNode(result.bug)},
-        });
+    buttons.find("a.tvp-edit").bugentry({
+        mode: 'edit',
+        bug: bug,
+        title: "Edit: " + bug.id,
+        success: function(ev,result) {TVP.updateBugNode(result.bug)},
     });
 }
 
@@ -96,8 +103,7 @@ TVP.addBugNode = function(bug)
     var parents = [];
     var parentIDs = bug.value(TVP_FROM) || [];
     TVP.tree.visit(function(node) {
-        var bugId = Number(node.data.bug_id);
-        if (parentIDs.indexOf(bugId) != -1) {
+        if (parentIDs.indexOf(node.data.bug_id) != -1) {
             parents.push(node);
         }
     }, false);
@@ -118,12 +124,13 @@ TVP.updateBugNode = function(bug)
     var parents = bug.value(TVP_FROM) || [];
     var children = bug.value(TVP_TO) || [];
     TVP.getNodesByBugID(bug.id).forEach(function(node) {
-        if (parents.indexOf(Number(node.getParent().data.bug_id)) == -1) {
+        var parentID = node.getParent().data.bug_id;
+        if (parentID && parents.indexOf(parentID) == -1) {
             node.remove();
             return;
         }
         (node.getChildren() || []).forEach(function(child) {
-            if(children.indexOf(Number(child.data.bug_id)) == -1) child.remove();
+            if(children.indexOf(child.data.bug_id) == -1) child.remove();
         });
         // TODO add new children
         node.data.columns = null;
@@ -180,7 +187,7 @@ TVP.treeData = {
     onActivate: function(node)
     {
         if (TVP.bugs[node.data.bug_id]) {
-            $(".tvp-buttons", node.li).first().show();
+            TVP.showNodeButtons(node);
         } else {
             var ids = [node.data.bug_id];
             if(!node.data.columns) {
@@ -195,7 +202,7 @@ TVP.treeData = {
                     TVP.bugs[bug.id] = bug;
                     TVP.nodeBugGetDone(bug.id);
                 })
-                $(".tvp-buttons", node.li).first().show();
+                TVP.showNodeButtons(node);
             });
         }
         TVP.highlight(node.data.bug_id, true);
@@ -217,6 +224,9 @@ TVP.init = function(tree) {
     $.extend(TVP.treeData, tree);
     $("#tvp_container").dynatree(TVP.treeData);
     TVP.tree = $("#tvp_container").dynatree("getTree");
+    TVP.tree.visit(function(node) {
+        node.data.bug_id = Number(node.data.bug_id);
+    });
     // Sort tree
     TVP.tree.getRoot().sortChildren(TVP.cmpNodes, true);
 }

@@ -77,9 +77,11 @@ sub _add_arc {
     my ($root, $tail, $head) = @_;
     my $tail_node = _get_node($root, $tail);
     $tail_node = $root->{$tail} = {} unless defined $tail_node;
-    my $head_node = _get_node($root, $head) || {};
-    delete $root->{$head} if defined $root->{$head};
-    $tail_node->{$head} = $head_node;
+    if (defined $head) {
+        my $head_node = _get_node($root, $head) || {};
+        delete $root->{$head} if defined $root->{$head};
+        $tail_node->{$head} = $head_node;
+    }
 }
 
 sub get_tree {
@@ -97,6 +99,7 @@ sub get_tree {
     my $from = $direction eq 'blocked' ? 'dependson' : 'blocked';
     for my $id (@$ids) {
         push(@$seen, $id);
+        _add_arc($root, $id);
     }
     my $dbh = Bugzilla->dbh;
     my $depends = $dbh->selectall_arrayref(
