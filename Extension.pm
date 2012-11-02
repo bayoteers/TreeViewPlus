@@ -62,8 +62,6 @@ sub template_before_process {
     $vars->{bug_info_json} = encode_json(\%buginfo);
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
     $vars->{field_map_json} = encode_json(COL_MAP);
-    my $entry_fields = [split(/\s/, Bugzilla->params->{tvp_bug_entry_fields})];
-    $vars->{bug_entry_fields} = encode_json($entry_fields);
 }
 
 sub _dynatree {
