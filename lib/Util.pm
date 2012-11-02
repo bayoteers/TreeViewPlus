@@ -49,25 +49,24 @@ sub _add_arc {
 }
 
 sub get_tree {
-    my ($ids, $depth, $direction, $root, $seen) = @_;
+    my ($ids, $dir, $depth, $root, $seen) = @_;
+    $dir ||= 'dependson';
     $depth = -1 unless defined $depth;
     $seen = [] unless defined $seen;
     $root = {} unless defined $root;
     return $root if (!@$ids || $depth == 0);
 
     # Set the direction of travelsal, default is from blocked to dependencies
-    $direction ||= 'dependson';
-    if (!grep($_ eq $direction, qw(dependson blocked))) {
-        $direction = "dependson";
-    }
-    my $from = $direction eq 'blocked' ? 'dependson' : 'blocked';
+    my $to = $dir =~ /(dependson|blocked)/ ? $1 : 'dependson';
+    my $from = $to eq 'blocked' ? 'dependson' : 'blocked';
+
     for my $id (@$ids) {
         push(@$seen, $id);
         _add_arc($root, $id);
     }
     my $dbh = Bugzilla->dbh;
     my $depends = $dbh->selectall_arrayref(
-        "SELECT $from, $direction FROM dependencies
+        "SELECT $from, $to FROM dependencies
           WHERE ".$dbh->sql_in($from, $ids)
     );
     my @next;
@@ -76,7 +75,7 @@ sub get_tree {
         _add_arc($root, $tail, $head);
         push(@next, $head) unless grep($head == $_, @$seen);
     }
-    return get_tree(\@next, $depth-1, $direction, $root, $seen);
+    return get_tree(\@next, $to, $depth-1, $root, $seen);
 }
 
 1;
@@ -93,7 +92,7 @@ Tree generation functions
 
 =head1 FUNCTIONS
 
-=head2 C<get_tree($ids, $depth, $direction)>
+=head2 C<get_tree($ids, $direction, $depth)>
 
 =over
 
@@ -107,9 +106,9 @@ Recursively generates the bug dependency tree
 
 =item C<ids> - List of ids to start the tree from
 
-=item C<depth> - Maximum depth to go to
-
 =item C<direction> - Direction of the tree travelsal
+
+=item C<depth> - Maximum depth to go to
 
 Either 'blocked', to get the tree of bugs these block, or 'dependson', to
 get the tree of bugs these bus depend on. Defaults to 'dependson'

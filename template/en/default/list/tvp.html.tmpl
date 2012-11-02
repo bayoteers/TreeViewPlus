@@ -41,8 +41,8 @@
 <script type="text/javascript">
 var DISPLAY_COLUMNS = [% displaycolumns_json %];
 var FIELD_MAP = [% field_map_json %];
-var TVP_FROM = 'blocks';
-var TVP_TO = 'depends_on';
+var TVP_FROM = '[% tvp_from %]';
+var TVP_TO = '[% tvp_to %]';
 $(function() {
     TVP.init([% tree_json %]);
 });

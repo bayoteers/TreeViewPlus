@@ -56,12 +56,17 @@ sub template_before_process {
         $buginfo{$bug->{bug_id}} = $bug;
         push(@bug_ids, $bug->{bug_id});
     }
+    my $dir = Bugzilla->cgi->param('tvp_dir') || '';
+
     $vars->{tree_json} = encode_json(
-        _dynatree(\%buginfo, $vars->{displaycolumns}, get_tree(\@bug_ids)));
+        _dynatree(\%buginfo, $vars->{displaycolumns},
+        get_tree(\@bug_ids, $dir)));
 
     $vars->{bug_info_json} = encode_json(\%buginfo);
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
     $vars->{field_map_json} = encode_json(COL_MAP);
+    $vars->{tvp_from} = $dir eq 'dependson' ? 'blocks' : 'depends_on';
+    $vars->{tvp_to} = $dir eq 'dependson' ? 'depends_on' : 'blocks';
 }
 
 

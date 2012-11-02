@@ -1,7 +1,10 @@
 <tr>
-    <th class="field_label">
+    <th class="field_label">TreeView+</th>
+    <td>
         <a href="buglist.cgi?bug_id=[% bug.bug_id %]&amp;bug_id_type=anddependson&amp;format=tvp">
-        TreeView+</a>
-    </th>
+        depends on</a> /
+        <a href="buglist.cgi?bug_id=[% bug.bug_id %]&amp;bug_id_type=andblocked&amp;format=tvp&amp;tvp_dir=blocked">
+        blocked</a>
+    </td>
     <td></td>
 </tr>
