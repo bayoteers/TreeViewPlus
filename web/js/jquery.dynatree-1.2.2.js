@@ -1,4 +1,4 @@
-/*! jQuery Dynatree Plugin - v1.2.2 - 2012-10-07
+/*! jQuery Dynatree Plugin - v1.2.2 - 2012-11-02
 * http://dynatree.googlecode.com/
 * Copyright (c) 2012 Martin Wendt; Licensed MIT, GPL */
 
@@ -674,16 +674,19 @@ DynaTreeNode.prototype = {
 		// Note: there is no check, if the event was fired on THIS node.
 		var tcn = event && event.target ? event.target.className : "",
 			cns = this.tree.options.classNames;
+		tcn = tcn.split(/\s+/);
 
-		if( tcn === cns.title ){
+		if( tcn.indexOf(cns.title) + 1 ){
 			return "title";
-		}else if( tcn === cns.expander ){
+		}else if( tcn.indexOf(cns.expander) + 1 ){
 			return "expander";
-		}else if( tcn === cns.checkbox ){
-			return "checkbox";
-		}else if( tcn === cns.nodeIcon ){
+		}else if( tcn.indexOf(cns.checkbox) + 1 ){
+			return "checkbox"; 
+		}else if( tcn.indexOf(cns.nodeIcon) + 1 ){
 			return "icon";
-		}else if( tcn === cns.empty || tcn === cns.vline || tcn === cns.connector ){
+		}else if( tcn.indexOf(cns.empty) + 1
+                || tcn.indexOf(cns.vline) +1
+                || tcn.indexOf(cns.connector) + 1 ){
 			return "prefix";
 		}else if( tcn.indexOf(cns.node) >= 0 ){
 			// FIX issue #93
@@ -2028,7 +2031,7 @@ var DynaTree = Class.create();
 
 // --- Static members ----------------------------------------------------------
 
-DynaTree.version = "$Version:$";
+DynaTree.version = "$Version: 1.2.2$";
 
 /*
 DynaTree._initTree = function() {
@@ -2991,7 +2994,7 @@ if( parseFloat($.ui.version) < 1.8 ) {
 /*******************************************************************************
  * Tools in ui.dynatree namespace
  */
-$.ui.dynatree.version = "$Version:$";
+$.ui.dynatree.version = "$Version: 1.2.2$";
 
 /**
  * Return a DynaTreeNode object for a given DOM element
@@ -3146,7 +3149,7 @@ $.ui.dynatree.prototype.options = {
 		partsel: "dynatree-partsel",
 		lastsib: "dynatree-lastsib"
 	},
-	debugLevel: 2, // 0:quiet, 1:normal, 2:debug $REPLACE:	debugLevel: 1,
+	debugLevel: 1,
 
 	// ------------------------------------------------------------------------
 	lastentry: undefined

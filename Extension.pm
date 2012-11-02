@@ -64,6 +64,8 @@ sub template_before_process {
     $vars->{field_map_json} = encode_json(COL_MAP);
 }
 
+
+## Generates the data sturcture suitable for jQuery dynatree
 sub _dynatree {
     my ($buginfo, $columns, $node, $id) = @_;
     my %result;
@@ -75,8 +77,6 @@ sub _dynatree {
         if (defined $bug) {
             $result{in_results} = 1;
             $result{columns} = $bug;
-            $result{title} .= " &bull; ".
-                    join(" &bull; ", map(defined $bug->{$_} ? $bug->{$_} : '---', @$columns));
         }
     }
 

@@ -227,6 +227,30 @@ TVP.treeData = {
     onRender: function(node, nodeSpan)
     {
         if(!node.data.in_results) $(nodeSpan).css("opacity", "0.5");
+        if (node.data.columns) {
+            // Add Bugzilla bug CSS classes
+            ['bug_status', 'resolution', 'priority', 'bug_severity']
+                .forEach(function(col) {
+                    if (node.data.columns[col])
+                        $(".dynatree-title", nodeSpan)
+                        .addClass("bz_" + node.data.columns[col]);
+                });
+        }
+    },
+
+    onCustomRender: function(node)
+    {
+        var title = node.data.bug_id;
+        if (node.data.columns) {
+            DISPLAY_COLUMNS.forEach(function(col) {
+                title += " &bull; " + node.data.columns[col];
+            });
+        }
+        return $("<p>").append(
+                $("<a class='dynatree-title'>")
+                    .attr("href", node.data.href || "#")
+                    .html(title)
+                ).html();
     },
 
     onClick: function(node, ev)
