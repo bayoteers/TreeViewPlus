@@ -65,8 +65,8 @@ sub template_before_process {
     $vars->{bug_info_json} = encode_json(\%buginfo);
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
     $vars->{field_map_json} = encode_json(COL_MAP);
-    $vars->{tvp_from} = $dir eq 'dependson' ? 'blocks' : 'depends_on';
-    $vars->{tvp_to} = $dir eq 'dependson' ? 'depends_on' : 'blocks';
+    $vars->{tvp_to} = $dir eq 'blocked' ? 'blocks' : 'depends_on';
+    $vars->{tvp_from} = $dir eq 'blocked' ? 'depends_on' : 'blocks';
 }
 
 

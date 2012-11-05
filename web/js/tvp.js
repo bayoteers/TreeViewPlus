@@ -320,7 +320,14 @@ TVP.treeData = {
         onDragEnter:function(){return true;},
         onDragOver: function(node, sourceNode, hitMode) {
             // Just to show that dropping node under it self is a no-no
-            if (node.isDescendantOf(sourceNode)) return false;
+            var notParent = true;
+            node.visitParents(function(parentNode) {
+                if(parentNode.data.bug_id == sourceNode.data.bug_id) {
+                    notParent = false;
+                    return false;
+                }
+            });
+            return notParent;
         },
     }
 }
