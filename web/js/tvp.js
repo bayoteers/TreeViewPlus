@@ -1,12 +1,10 @@
 /**
  * TreeViewPlus "namespace"
  */
-var TVP = {};
-
-/**
- * Hash that stores complete bug objects fetched via RPC
- */
-TVP.bugs = {};
+var TVP = {
+    // Hash that stores complete bug objects fetched via RPC
+    bugs: {},
+};
 
 function extName(field)
 {
@@ -146,12 +144,30 @@ TVP.highlight = function(bugID, on)
     TVP.getNodesByBugID(bugID).forEach(function(node) {
         if (on && !node.isActive()) {
             node.makeVisible();
-            $(node.li).addClass("tvp-hl-node");
+            $(".dynatree-title", node.li).first().addClass("tvp-hl-node");
             return 'skip';
         } else {
-            $(node.li).removeClass("tvp-hl-node");
+            $(".dynatree-title", node.li).first().removeClass("tvp-hl-node");
         }
     });
+}
+
+TVP.loadAll = function()
+{
+    var incomplete = [];
+    TVP.tree.getRoot().visit(function(node) {
+        if (!node.data.columns) {
+            incomplete.push(node.data.bug_id);
+        }
+    });
+    if (incomplete.length) {
+        Bug.get(incomplete, function(bugs) {
+            bugs.forEach(function(bug) {
+                TVP.bugs[bug.id] = bug;
+                TVP.nodeBugGetDone(bug.id);
+            });
+        })
+    }
 }
 
 /**
@@ -339,6 +355,7 @@ TVP.init = function(tree) {
                 node.expand(false);
             });
         });
+        $("#tvp_load").click(TVP.loadAll);
     });
 }
 
