@@ -1,0 +1,106 @@
+diff --git a/Bugzilla/Search.pm b/Bugzilla/Search.pm
+index 9a5e888..5187aaa 100644
+--- a/Bugzilla/Search.pm
++++ b/Bugzilla/Search.pm
+@@ -182,6 +182,10 @@ use constant OPERATORS => {
+     changedfrom    => \&_changedfrom_changedto,
+     changedto      => \&_changedfrom_changedto,
+     changedby      => \&_changedby,
++    anddependson   => \&_withdependencies,
++    andblocked     => \&_withdependencies,
++    notdependson   => \&_excludedependencies,
++    notblocked     => \&_excludedependencies,
+ };
+ 
+ # Some operators are really just standard SQL operators, and are
+@@ -2873,6 +2877,61 @@ sub _changed_security_check {
+     }
+ }
+ 
++sub _get_dependencies {
++    my ($from, $to, @ids) = @_;
++    my $dbh = Bugzilla->dbh;
++    return () unless @ids;
++
++    my @depends = @{$dbh->selectcol_arrayref(
++        "SELECT ".$to.
++         " FROM dependencies ".
++         "WHERE ".$from." IN(".join(",",map ("?", @ids)).")",
++        , undef, @ids)};
++    return @depends;
++}
++
++sub _withdependencies {
++    my ($self, $args) = @_;
++    my ($field, $full_field, $operator) =
++        @$args{qw(field full_field operator)};
++
++    ThrowUserError("search_field_operator_invalid",
++        { field => $field, operator => $operator })
++        unless ($field eq "bug_id");
++
++    my $dbh = Bugzilla->dbh;
++    my @ids = $self->_all_values($args);
++    detaint_natural($_) for (@ids);
++
++    my ($from, $to) = $operator eq "anddependson" ?
++        qw(blocked dependson):
++        qw(dependson blocked);
++
++    my @depends = _get_dependencies($from, $to, @ids);
++    while (@depends) {
++        my @new_ids;
++        for my $id (@depends) {
++            push @new_ids, $id unless grep($_ == $id, @ids)
++        }
++        push @ids, @new_ids;
++        @depends = _get_dependencies($from, $to, @new_ids);
++    }
++    if (@ids) {
++        $args->{term} = $dbh->sql_in($full_field, \@ids);
++    }
++    else {
++        $args->{term} = '';
++    }
++}
++
++sub _excludedependencies {
++    my ($self, $args) = @_;
++    $args->{operator} = $args->{operator} eq "notdependson" ?
++        "anddependson" : "andblocked";
++    $self->_withdependencies($args);
++    $args->{term} = "NOT(".$args->{term}.")";
++}
++
+ ######################
+ # Public Subroutines #
+ ######################
+diff --git a/template/en/default/list/list.html.tmpl b/template/en/default/list/list.html.tmpl
+index 4eeff5e..3a941c4 100644
+--- a/template/en/default/list/list.html.tmpl
++++ b/template/en/default/list/list.html.tmpl
+@@ -84,7 +84,8 @@
+   'notequals', 'regexp', 'notregexp', 'lessthan', 'lessthaneq', 
+   'greaterthan', 'greaterthaneq', 'changedbefore', 'changedafter', 
+   'changedfrom', 'changedto', 'changedby', 'notsubstring', 'nowords',
+-  'nowordssubstr', 'notmatches',
++  'nowordssubstr', 'notmatches', 'anddependson', 'andblocked', 'notdependson',
++  'notblocked'
+ ] %]
+ <ul class="search_description">
+ [% FOREACH desc_item = search_description %]
+diff --git a/template/en/default/search/form.html.tmpl b/template/en/default/search/form.html.tmpl
+index 41e1165..8f2ce02 100644
+--- a/template/en/default/search/form.html.tmpl
++++ b/template/en/default/search/form.html.tmpl
+@@ -260,6 +260,10 @@ TUI_hide_default('information_query');
+     <select name="bug_id_type" id="bug_id_type">
+       <option value="anyexact"[% " selected" IF default.bug_id_type.0 == "anyexact" %]>only included in</option>
+       <option value="nowords"[% " selected" IF default.bug_id_type.0 == "nowords" %]>excluded from</option>
++      <option value="anddependson"[% " selected" IF default.bug_id_type.0 == "anddependson" %]>included, with all [% terms.bugs %] they depend on, in</option>
++      <option value="andblocked"[% " selected" IF default.bug_id_type.0 == "andblocked" %]>included, with all [% terms.bugs %] they block, in</option>
++      <option value="notdependson"[% " selected" IF default.bug_id_type.0 == "notdependson" %]>excluded, with all [% terms.bugs %] they depend on, in</option>
++      <option value="notblocked"[% " selected" IF default.bug_id_type.0 == "notblocked" %]>excluded, with all [% terms.bugs %] they block, in</option>
+     </select> the results
+   </div>
+ 

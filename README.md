@@ -19,9 +19,14 @@ extension, so install it first.
 
         extensions/TreeViewPlus
 
-2.  Run checksetup.pl
+2.  Patch Bugzilla to provide dependency inclusion in custom search. From
+    Bugzilla root directory run
 
-3.  Restart your webserver if needed (for exmple when running under mod_perl)
+        $ patch -p1 < extensions/TreeViewPlus/search_include_dependencies.patch
+
+3.  Run checksetup.pl
+
+4.  Restart your webserver if needed (for exmple when running under mod_perl)
 
     
 Included Libraries
