@@ -78,9 +78,4 @@ sub _dynatree {
     return \%result;
 }
 
-sub webservice {
-    my ($self, $args) = @_;
-    $args->{dispatch}->{Tree} = "Bugzilla::Extension::TreeViewPlus::WebService";
-}
-
 __PACKAGE__->NAME;
