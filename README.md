@@ -26,7 +26,16 @@ extension, so install it first.
 
 3.  Run checksetup.pl
 
-4.  Restart your webserver if needed (for exmple when running under mod_perl)
+4.  Restart your webserver if needed (for exmple when running under mod perl)
+
+
+Security note
+-------------
+
+Currently TreeViewPlus extension does not follow the bug group visibility
+restrictions, so it might expose bug information to users outside the allowed
+groups. If you are using groups to restrict bug visibility, it is recommended
+that you do not use TreeViewPlus.
 
     
 Included Libraries
