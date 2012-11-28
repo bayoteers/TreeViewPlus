@@ -13,21 +13,6 @@ use strict;
 use constant NAME => 'TreeViewPlus';
 
 use constant REQUIRED_MODULES => [
-    {
-       package => 'JSON-RPC',
-       module  => 'JSON::RPC',
-       version => 0,
-    },
-    {
-       package => 'Test-Taint',
-       module  => 'Test::Taint',
-       version => 0,
-    },
-    {
-       package => 'SOAP-Lite',
-       module  => 'SOAP::Lite',
-       version => 0.712,
-    },
 ];
 
 use constant OPTIONAL_MODULES => [
