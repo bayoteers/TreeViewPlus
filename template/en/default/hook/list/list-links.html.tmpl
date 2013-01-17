@@ -7,6 +7,18 @@
   # Contact: Pami Ketolainen <pami.ketolainen@jollamobile.com>
   #%]
 <!-- TreeViewPlus -->
-<a href="buglist.cgi?[% urlquerypart FILTER html %]&amp;format=tvp">TreeView+ (depends on)</a> |
-<a href="buglist.cgi?[% urlquerypart FILTER html %]&amp;format=tvp&amp;tvp_dir=blocked">
+[% IF template.name != 'list/list-tvp.html.tmpl' OR cgi.param('tvp_dir') == 'blocked' %]
+<a href="buglist.cgi?[% urlquerypart
+						FILTER remove_query_param('format')
+            FILTER remove_query_param('tvp_dir')
+						FILTER html %]&amp;format=tvp&amp;tvp_dir=dependson">
+TreeView+ (depends on)</a> |
+[% END %]
+
+[% IF template.name != 'list/list-tvp.html.tmpl' OR cgi.param('tvp_dir') != 'blocked' %]
+<a href="buglist.cgi?[% urlquerypart
+						FILTER remove_query_param('format')
+            FILTER remove_query_param('tvp_dir')
+						FILTER html %]&amp;format=tvp&amp;tvp_dir=blocked">
 TreeView+ (blocks)</a> |
+[% END %]

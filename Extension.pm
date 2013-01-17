@@ -35,7 +35,7 @@ use constant COL_MAP => {
 
 sub template_before_process {
     my ($self, $params) = @_;
-    return unless ($params->{file} eq 'list/tvp.html.tmpl');
+    return unless ($params->{file} eq 'list/list-tvp.html.tmpl');
 
     my $vars = $params->{vars};
     my @bug_ids;
