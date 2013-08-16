@@ -348,31 +348,27 @@ TVP.treeData = {
 TVP.init = function(tree) {
     $.extend(TVP.treeData, tree);
 
-    // Hackety hack... something needs to be done about the bug field
-    // definitions.
-    Bug.initFields().done(function() {
-        $("#tvp_container").dynatree(TVP.treeData);
-        TVP.tree = $("#tvp_container").dynatree("getTree");
-        TVP.tree.visit(function(node) {
-            node.data.bug_id = Number(node.data.bug_id);
-        });
-        // Sort tree
-        TVP.tree.getRoot().sortChildren(TVP.cmpNodes, true);
-        $("#tvp_dnd_switch").prop("disabled", false).change(function() {
-            TVP.dndEnabled = $(this).prop("checked");
-        });
-        $("#tvp_expand").click(function() {
-            TVP.tree.visit(function(node) {
-                node.expand(true);
-            });
-        });
-        $("#tvp_collapse").click(function() {
-            TVP.tree.visit(function(node) {
-                node.expand(false);
-            });
-        });
-        $("#tvp_load").click(TVP.loadAll);
+    $("#tvp_container").dynatree(TVP.treeData);
+    TVP.tree = $("#tvp_container").dynatree("getTree");
+    TVP.tree.visit(function(node) {
+        node.data.bug_id = Number(node.data.bug_id);
     });
+    // Sort tree
+    TVP.tree.getRoot().sortChildren(TVP.cmpNodes, true);
+    $("#tvp_dnd_switch").prop("disabled", false).change(function() {
+        TVP.dndEnabled = $(this).prop("checked");
+    });
+    $("#tvp_expand").click(function() {
+        TVP.tree.visit(function(node) {
+            node.expand(true);
+        });
+    });
+    $("#tvp_collapse").click(function() {
+        TVP.tree.visit(function(node) {
+            node.expand(false);
+        });
+    });
+    $("#tvp_load").click(TVP.loadAll);
 }
 
 
