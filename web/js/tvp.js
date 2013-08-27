@@ -56,10 +56,13 @@ TVP.nodeBugGetDone = function(bugID) {
         if (!node.data.columns) {
             node.data.columns = {};
             node.data.title = bug.id;
-            DISPLAY_COLUMNS.forEach(function(field) {
-                var value = bug.value(extName(field));
-                if (value == undefined) value = " ";
-                node.data.columns[field] = value;
+            DISPLAY_COLUMNS.forEach(function(name) {
+                try {
+                    var value = bug.value(name);
+                } catch(e) {
+                    var value = " ";
+                }
+                node.data.columns[name] = value;
                 node.data.title += " &bull; " + value;
             });
             if (node.isVisible()) node.render();
