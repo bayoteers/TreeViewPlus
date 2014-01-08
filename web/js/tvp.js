@@ -12,7 +12,7 @@
  */
 var TVP = {
     // Hash that stores complete bug objects fetched via RPC
-    bugs: {},
+    bugs: {}
 };
 
 function extName(field)
@@ -87,8 +87,8 @@ TVP.showNodeButtons = function(node) {
     var bug = TVP.bugs[node.data.bug_id];
     var clone = ['product', 'component', 'version'];
     var defaults = {
-        severity: BB_CONFIG.default.severity,
-        priority: BB_CONFIG.default.priority,
+        severity: BB_CONFIG.defaults.severity,
+        priority: BB_CONFIG.defaults.priority
     };
     defaults[TVP_FROM] = bug.id;
     buttons.find("a.tvp-add").bugentry({
@@ -96,14 +96,14 @@ TVP.showNodeButtons = function(node) {
         defaults: defaults,
         bug: bug,
         title: "Add new dependency to: " + bug.id,
-        success: function(ev,result) {TVP.addBugNode(result.bug)},
+        success: function(ev,result) {TVP.addBugNode(result.bug)}
     });
 
     buttons.find("a.tvp-edit").bugentry({
         mode: 'edit',
         bug: bug,
         title: "Edit: " + bug.id,
-        success: function(ev,result) {TVP.updateBugNode(result.bug)},
+        success: function(ev,result) {TVP.updateBugNode(result.bug)}
     });
 }
 
@@ -119,7 +119,7 @@ TVP.addBugNode = function(bug)
     }, false);
     var nodeData = {
         bug_id: bug.id,
-        title: bug.id,
+        title: bug.id
     };
     parents.forEach(function(node) {
         node.addChild(nodeData);
@@ -340,7 +340,7 @@ TVP.treeData = {
                 }
             });
             return notParent;
-        },
+        }
     }
 }
 
