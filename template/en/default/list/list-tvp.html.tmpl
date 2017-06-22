@@ -72,7 +72,8 @@ var FIELD_MAP = [% field_map_json %];
 var TVP_FROM = '[% tvp_from %]';
 var TVP_TO = '[% tvp_to %]';
 $(function() {
-    TVP.init([% tree_json %]);
+    var data = JSON.parse(atob("[% tree_json %]"));
+    TVP.init(data);
 });
 </script>
 

@@ -268,17 +268,19 @@ TVP.treeData = {
 
     onCustomRender: function(node)
     {
-        var title = node.data.bug_id;
+        var link = $("<a class='dynatree-title'>")
+            .attr("href", node.data.href || "#")
+        // Temporary element used for HTML escaping
+        var tmpspan = $("<span>");
+        tmpspan.text(node.data.bug_id)
+        link.append(tmpspan.html());
         if (node.data.columns) {
             DISPLAY_COLUMNS.forEach(function(col) {
-                title += " &bull; " + node.data.columns[col];
+                tmpspan.text(node.data.columns[col]);
+                link.append(" &bull; " + tmpspan.html());
             });
         }
-        return $("<p>").append(
-                $("<a class='dynatree-title'>")
-                    .attr("href", node.data.href || "#")
-                    .html(title)
-                ).html();
+        return $("<p>").append(link).html();
     },
 
     onClick: function(node, ev)

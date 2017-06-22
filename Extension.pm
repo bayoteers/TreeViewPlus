@@ -13,6 +13,7 @@ use base qw(Bugzilla::Extension);
 
 # This code for this is in ./extensions/TreeViewPlus/lib/Util.pm
 use Bugzilla::Extension::TreeViewPlus::Util;
+use MIME::Base64;
 use Bugzilla::Bug;
 
 use JSON qw(encode_json);
@@ -46,11 +47,13 @@ sub template_before_process {
     }
     my $dir = Bugzilla->cgi->param('tvp_dir') || '';
 
-    $vars->{tree_json} = encode_json(
+    # bas64 encoding for the initial data so that possible script or other html
+    # tags in the content don't break the page
+    $vars->{tree_json} = encode_base64(encode_json(
         _dynatree(\%buginfo, $vars->{displaycolumns},
-        get_tree(\@bug_ids, $dir)));
+        get_tree(\@bug_ids, $dir))
+    ), "");
 
-    $vars->{bug_info_json} = encode_json(\%buginfo);
     $vars->{displaycolumns_json} = encode_json($vars->{displaycolumns});
     $vars->{field_map_json} = encode_json(COL_MAP);
     $vars->{tvp_to} = $dir eq 'blocked' ? 'blocks' : 'depends_on';
