@@ -46,6 +46,7 @@ sub template_before_process {
         push(@bug_ids, $bug->{bug_id});
     }
     my $dir = Bugzilla->cgi->param('tvp_dir') || '';
+    $vars->{tvp_dir} = $dir;
 
     # bas64 encoding for the initial data so that possible script or other html
     # tags in the content don't break the page
