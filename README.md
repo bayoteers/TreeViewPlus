@@ -41,5 +41,5 @@ that you do not use TreeViewPlus.
 Included Libraries
 ------------------
 
-*   [jQuery Dynatree plugin](http://code.google.com/p/dynatree/)
+*   [jQuery Dynatree plugin](https://github.com/mar10/dynatree)
 
